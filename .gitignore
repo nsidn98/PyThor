@@ -5,6 +5,10 @@ __pycache__/
 
 # C extensions
 *.so
+# Lightning folders
+MNIST/
+model_weights/
+logs/
 
 # Distribution / packaging
 .Python

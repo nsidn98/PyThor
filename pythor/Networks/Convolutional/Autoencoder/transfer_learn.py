@@ -26,7 +26,7 @@ from torchvision.datasets import CIFAR10
 from torchvision import datasets, transforms
 from torchvision import transforms
 
-from autoencoder import Encoder, Decoder, AutoEncoder
+from pythor.Networks.Convolutional.Autoencoder.autoencoder import Encoder, Decoder, AutoEncoder
 
 # %%
 ACTS = {
