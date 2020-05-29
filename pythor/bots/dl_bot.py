@@ -67,6 +67,7 @@ class DLBot(object):
                                " Send /setlr to change the learning rate.\n" \
                                " Send /quiet to stop getting automatic updates each epoch\n" \
                                " Send /plot to get a loss convergence plot.\n" \
+                               " Send /plotdiags to get a diagram plot.\n" \
                                " Send /stoptraining to stop training process.\n\n"
 
     def activate_bot(self):
@@ -83,6 +84,7 @@ class DLBot(object):
         dp.add_handler(CommandHandler("getlr", self.get_lr, filters=self.filters))  # /get learning rate
         dp.add_handler(CommandHandler("quiet", self.quiet, filters=self.filters))  # /stop automatic updates
         dp.add_handler(CommandHandler("plot", self.plot_loss, filters=self.filters))  # /plot loss
+        dp.add_handler(CommandHandler("plotdiags", self.plot_diagrams, filters=self.filters))  # /plot other diagrams
         dp.add_handler(self.lr_handler())  # set learning rate
         dp.add_handler(self.stop_handler())  # stop training
 
@@ -127,8 +129,8 @@ class DLBot(object):
         assert isinstance(txt, str), 'Message text must be of type string'
         if self.chat_id is not None:
             self.updater.bot.send_message(chat_id=self.chat_id, text=txt)
-        else:
-            print('Send message failed, user did not send /start')
+        # else:
+            # print('Send message failed, user did not send /start')
 
     def set_status(self, txt):
         """ Function to set a status message to be returned by the /status command """
@@ -222,6 +224,36 @@ class DLBot(object):
 
     # Plot loss history
     def plot_loss(self, bot, update):
+        """ Telegram bot callback for the /plot command. Replies with a convergence plot image"""
+
+        if not self.loss_hist or plt is None:
+            # First epoch wasn't finished or matplotlib isn't installed
+            update.message.reply_text('No values in array',
+                                  reply_markup=ReplyKeyboardRemove())
+            return
+        loss_np = np.asarray(self.loss_hist)
+        # Check if training has a validation set
+        val_loss_np = np.asarray(self.val_loss_hist) if self.val_loss_hist else None
+        legend_keys = ['loss', 'val_loss'] if self.val_loss_hist else ['loss']
+
+        x = np.arange(len(loss_np))  # Epoch axes
+        fig = plt.figure()
+        ax = plt.axes()
+        ax.plot(x, loss_np, 'b')  # Plot training loss
+        if val_loss_np is not None:
+            ax.plot(x, val_loss_np, 'r')  # Plot val loss
+        plt.title('Loss Convergence')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        ax.legend(legend_keys)
+        buffer = BytesIO()
+        fig.savefig(buffer, format='png')
+        buffer.seek(0)
+        update.message.reply_photo(buffer)  # Sent image to user
+
+    # Plot loss history
+    def plot_diagrams(self, bot, update):
+        # TODO add other functionalities for plotting
         """ Telegram bot callback for the /plot command. Replies with a convergence plot image"""
 
         if not self.loss_hist or plt is None:

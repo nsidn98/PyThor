@@ -2,6 +2,7 @@
 Modules for building a manual MLP
 """
 import os
+from argparse import ArgumentParser
 
 import torch
 from torch import nn
@@ -15,10 +16,14 @@ from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks.base import Callback
 from pytorch_lightning import loggers
+from pytorch_lightning.loggers import MLFlowLogger
 
 from pythor.datamodules import MNISTDataLoaders
-
+from pythor.bots.botCallback import TelegramBotCallback
+from pythor.bots.dl_bot import DLBot
+from pythor.bots.config import telegram_config
 # %%
 ACTS = {
     'relu':nn.ReLU,
@@ -32,21 +37,16 @@ optimizers = {
     'rmsprop': optim.RMSprop,
     }
 
+
+
 # %%
 
 class MLP(LightningModule):
-    def __init__(self,  input_shape=784,
-                        num_outputs=10,
-                        hidden_dim=[512,256],
-                        activation='relu',
-                        opt='adam',
-                        batch_size=32,
-                        lr=0.001,
-                        weight_decay=0):
+    def __init__(self, hparams=None):
         super(MLP, self).__init__()
         """
         Multi-layer perceptron with two layers
-        Parameters
+        Parameters to be included in hparams
         ----------
         input_shape : int
             Dimension of input vector.
@@ -70,49 +70,37 @@ class MLP(LightningModule):
             Weight decay in optimizer.
             Default : 0
         """
-        self.input_shape = input_shape
-        self.num_outputs = num_outputs
-        self.hidden_dim = hidden_dim
-        self.opt = opt
-        self.batch_size = batch_size
-        self.lr = lr
-        self.weight_decay = weight_decay
-        act = ACTS[activation]
+        self.__check_hparams(hparams)
+        self.hparams = hparams
 
         # NOTE Change dataloaders appropriately
         self.dataloaders = MNISTDataLoaders(save_path=os.getcwd())
 
         
         self.fc = nn.Sequential(
-            nn.Linear(input_shape, hidden_dim[0]),
-            act(),
-            nn.Linear(hidden_dim[0], hidden_dim[1]),
-            act(),
-            nn.Linear(hidden_dim[1], self.num_outputs)
+            nn.Linear(self.input_shape, self.hidden_dim[0]),
+            self.act(),
+            nn.Linear(self.hidden_dim[0], self.hidden_dim[1]),
+            self.act(),
+            nn.Linear(self.hidden_dim[1], self.num_outputs)
         )
         
+    def __check_hparams(self, hparams):
+        self.input_shape = hparams.input_shape if hasattr(hparams,'input_shape') else 784
+        self.num_outputs = hparams.num_outputs if hasattr(hparams,'num_outputs') else 10
+        self.hidden_dim = hparams.hidden_dim if hasattr(hparams,'hidden_dim') else [512,256]
+        self.opt = hparams.opt if hasattr(hparams,'opt') else 'adam'
+        self.batch_size = hparams.batch_size if hasattr(hparams,'batch_size') else 32
+        self.lr = hparams.lr if hasattr(hparams,'lr') else 0.001
+        self.weight_decay = hparams.weight_decay if hasattr(hparams,'weight_decay') else 0
+        self.activation = hparams.activation if hasattr(hparams,'activation') else 'relu'
+        self.act = ACTS[self.activation]
+
     def forward(self, x):
         # NOTE comment the line below, just for testing purposes
-        x = x.view(-1, 28 * 28)
+        x = x.view(-1, self.input_shape)
         x = self.fc(x)
         return x
-    
-    def feature_size(self):
-        """
-            Get feature size after conv layers to flatten
-        """
-        return self.features(autograd.Variable(torch.zeros(1, *self.input_shape))).view(1, -1).size(1)
-
-    def training_step(self, batch, batch_idx):
-        """
-            Define one training step
-        """
-        x, y = batch
-        y_hat = self(x)  # get predictions from network
-        loss = F.cross_entropy(y_hat, y)
-        tensorboard_log = {'trainer_loss':loss}
-        self.logger.experiment.add_scalar('loss',loss)
-        return {'loss': loss, 'log': tensorboard_log}
 
     def configure_optimizers(self):
         """
@@ -134,6 +122,32 @@ class MLP(LightningModule):
         """
         return self.dataloaders.train_dataloader(self.batch_size)
 
+    def training_step(self, batch, batch_idx):
+        """
+            Define one training step
+        """
+        x, y = batch
+        y_hat = self(x)  # get predictions from network
+        loss = F.cross_entropy(y_hat, y)
+        mlf_log = {'trainer_loss':loss.item()}
+        log = {'trainer_loss':loss}
+        # self.logger.experiment.log_metric('train_loss',loss)
+        self.logger.log_metrics(mlf_log)
+        return {'loss': loss, 'log': log}
+    
+    def training_epoch_end(self, outputs):
+        """
+            Train Loss at the end of epoch
+            Will store logs
+        """
+        avg_loss = torch.stack([x['trainer_loss'] for x in outputs]).mean()
+        tensorboard_logs = {'trainer_loss1': avg_loss}
+        self.loss = avg_loss.item()  # for telegram bot
+        return {'train_loss': avg_loss, 'log': tensorboard_logs}
+
+    def val_dataloader(self):
+        return self.dataloaders.val_dataloader(self.batch_size)
+
     def validation_step(self, batch, batch_idx):
         """
             One validation step
@@ -144,15 +158,16 @@ class MLP(LightningModule):
 
     def validation_epoch_end(self, outputs):
         """
-            Validatio at the end of epoch
+            Validation at the end of epoch
             Will store logs
         """
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         tensorboard_logs = {'val_loss': avg_loss}
+        self.val_loss = avg_loss.item()   # for telegram bot
         return {'val_loss': avg_loss, 'log': tensorboard_logs}
-
-    def val_dataloader(self):
-        return self.dataloaders.val_dataloader(self.batch_size)
+    
+    def test_dataloader(self):
+        return self.dataloaders.test_dataloader(self.batch_size)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -164,13 +179,39 @@ class MLP(LightningModule):
         tensorboard_logs = {'test_loss': avg_loss}
         return {'avg_test_loss': avg_loss, 'log': tensorboard_logs}
 
-    def test_dataloader(self):
-        return self.dataloaders.test_dataloader(self.batch_size)
+    
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+        parser.add_argument('--input_shape', type=int, default=784,
+                            help='input vector shape for MNIST')
+        parser.add_argument('--num_outputs', type=int, default=10,
+                            help='output vector shape for MNIST')
+        parser.add_argument('--hidden_dim', type=list, default=[512,256],
+                            help='hidden dimensions size')
+        parser.add_argument('--activation', type=str, default='relu', choices=['relu', 'sigmoid', 'tanh'],
+                            help='activations for nn layers')
+        parser.add_argument('--batch_size', type=int, default=32,
+                            help='input vector shape for MNIST')
+        # optimizer
+        parser.add_argument('--opt', type=str, default='adam', choices=['adam', 'adamax', 'rmsprop'],
+                            help='optimizer type for optimization')
+        parser.add_argument('--lr', type=float, default=0.001,
+                            help='learning rate')
+        parser.add_argument('--weight_decay', type=float, default=0,
+                            help='weight decay in optimizer')
+        return parser
 
 # %%
 
 
-if __name__ == "__main__":
+def main():
+    parser = ArgumentParser()
+    # using this will log all params in mlflow board automatically
+    parser = Trainer.add_argparse_args(parser) 
+    parser = MLP.add_model_specific_args(parser)
+    args = parser.parse_args()
+
     save_folder = 'model_weights/'
     if not os.path.exists(save_folder):
         os.mkdir(save_folder)
@@ -178,15 +219,31 @@ if __name__ == "__main__":
     # saves checkpoints to 'save_folder' whenever 'val_loss' has a new min
     checkpoint_callback = ModelCheckpoint(
                             filepath=save_folder+'model_{epoch:02d}-{val_loss:.2f}')
-    tb_logger = loggers.TensorBoardLogger('logs/')
+    # tb_logger = loggers.TensorBoardLogger('logs')
+    mlf_logger = MLFlowLogger(
+                                experiment_name="mlp",
+                                tracking_uri="file:./mlruns"
+                                )
 
-    model = MLP(784,10)
+    # telegram
+    token = telegram_config['token']
+    user_id = telegram_config['user_id']
+    bot = DLBot(token=token, user_id=user_id)
+    telegramCallback = TelegramBotCallback(bot)
+
+    model = MLP(args)
+
     trainer = Trainer(checkpoint_callback=checkpoint_callback,
                         early_stop_callback=early_stopping,
                         fast_dev_run=False,                      # make this as True only to check for bugs
                         max_epochs=1000,
                         resume_from_checkpoint=None,            # change this to model_path
-                        logger=tb_logger,                       # tensorboard logger
+                        logger=mlf_logger,                       # tensorboard logger
+                        callbacks=[telegramCallback],
                         )
+
     trainer.fit(model)
     trainer.test()
+
+if __name__ == "__main__":
+    main()

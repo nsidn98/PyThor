@@ -9,6 +9,8 @@ __pycache__/
 MNIST/
 model_weights/
 logs/
+config.py
+mlruns/
 
 # Distribution / packaging
 .Python
