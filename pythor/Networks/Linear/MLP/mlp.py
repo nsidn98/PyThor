@@ -129,10 +129,8 @@ class MLP(LightningModule):
         x, y = batch
         y_hat = self(x)  # get predictions from network
         loss = F.cross_entropy(y_hat, y)
-        mlf_log = {'trainer_loss':loss.item()}
         log = {'trainer_loss':loss}
         # self.logger.experiment.log_metric('train_loss',loss)
-        self.logger.log_metrics(mlf_log)
         return {'loss': loss, 'log': log}
     
     def training_epoch_end(self, outputs):
@@ -141,9 +139,10 @@ class MLP(LightningModule):
             Will store logs
         """
         avg_loss = torch.stack([x['trainer_loss'] for x in outputs]).mean()
-        tensorboard_logs = {'trainer_loss1': avg_loss}
+        logs = {'trainer_loss_epoch': avg_loss}
         self.loss = avg_loss.item()  # for telegram bot
-        return {'train_loss': avg_loss, 'log': tensorboard_logs}
+        self.logger.log_metrics({'learning_rate':self.lr}) # if lr is changed by telegram bot
+        return {'train_loss': avg_loss, 'log': logs}
 
     def val_dataloader(self):
         return self.dataloaders.val_dataloader(self.batch_size)
@@ -162,9 +161,9 @@ class MLP(LightningModule):
             Will store logs
         """
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        tensorboard_logs = {'val_loss': avg_loss}
+        logs = {'val_loss_epoch': avg_loss}
         self.val_loss = avg_loss.item()   # for telegram bot
-        return {'val_loss': avg_loss, 'log': tensorboard_logs}
+        return {'val_loss': avg_loss, 'log': logs}
     
     def test_dataloader(self):
         return self.dataloaders.test_dataloader(self.batch_size)
@@ -176,8 +175,8 @@ class MLP(LightningModule):
 
     def test_epoch_end(self, outputs):
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
-        tensorboard_logs = {'test_loss': avg_loss}
-        return {'avg_test_loss': avg_loss, 'log': tensorboard_logs}
+        logs = {'test_loss_epoch': avg_loss}
+        return {'avg_test_loss': avg_loss, 'log': logs}
 
     
     @staticmethod
@@ -235,11 +234,11 @@ def main():
 
     trainer = Trainer(checkpoint_callback=checkpoint_callback,
                         early_stop_callback=early_stopping,
-                        fast_dev_run=False,                      # make this as True only to check for bugs
+                        fast_dev_run=False,                     # make this as True only to check for bugs
                         max_epochs=1000,
                         resume_from_checkpoint=None,            # change this to model_path
-                        logger=mlf_logger,                       # tensorboard logger
-                        callbacks=[telegramCallback],
+                        logger=mlf_logger,                      # mlflow logger
+                        callbacks=[telegramCallback],           # telegrad
                         )
 
     trainer.fit(model)
