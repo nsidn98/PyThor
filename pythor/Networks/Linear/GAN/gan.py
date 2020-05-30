@@ -8,6 +8,9 @@ from torch.nn import functional as F
 
 from pythor.datamodules import MNISTDataLoaders
 from pythor.Networks.Linear.GAN.gan_components import Generator, Discriminator
+from pythor.bots.botCallback import TelegramBotCallback
+from pythor.bots.dl_bot import DLBot
+from pythor.bots.config import telegram_config
 
 
 class GAN(LightningModule):

@@ -20,7 +20,6 @@ from pytorch_lightning import loggers
 
 from pythor.datamodules import MNISTDataLoaders
 
-# %%
 ACTS = {
     'relu':nn.ReLU,
     'sigmoid':nn.Sigmoid,
@@ -33,7 +32,6 @@ optimizers = {
     'rmsprop': optim.RMSprop,
     }
 
-# %%
 
 class ConvNet(LightningModule):
     def __init__(self,  input_shape,
@@ -167,7 +165,6 @@ class ConvNet(LightningModule):
 
     def test_dataloader(self):
         return self.dataloaders.test_dataloader(self.batch_size)
-# %%
 
 
 if __name__ == "__main__":

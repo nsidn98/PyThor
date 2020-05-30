@@ -24,7 +24,8 @@ from pythor.datamodules import MNISTDataLoaders
 from pythor.bots.botCallback import TelegramBotCallback
 from pythor.bots.dl_bot import DLBot
 from pythor.bots.config import telegram_config
-# %%
+
+
 ACTS = {
     'relu':nn.ReLU,
     'sigmoid':nn.Sigmoid,
@@ -37,9 +38,6 @@ optimizers = {
     'rmsprop': optim.RMSprop,
     }
 
-
-
-# %%
 
 class MLP(LightningModule):
     def __init__(self, hparams=None):
@@ -200,8 +198,6 @@ class MLP(LightningModule):
         parser.add_argument('--weight_decay', type=float, default=0,
                             help='weight decay in optimizer')
         return parser
-
-# %%
 
 
 def main():

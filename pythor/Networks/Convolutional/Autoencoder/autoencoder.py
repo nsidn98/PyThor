@@ -19,7 +19,6 @@ from pytorch_lightning import loggers
 
 
 from pythor.datamodules import MNISTDataLoaders
-# %%
 ACTS = {
     'relu':nn.ReLU,
     'sigmoid':nn.Sigmoid,
@@ -31,7 +30,6 @@ optimizers = {
     'adamax': optim.Adamax,
     'rmsprop': optim.RMSprop,
     }
-# %%
 
 class Encoder(torch.nn.Module):
     """
@@ -209,7 +207,6 @@ class AutoEncoder(LightningModule):
     def test_dataloader(self):
         return self.dataloaders.test_dataloader(self.batch_size)
 
-# %%
 
 if __name__ == "__main__":
     save_folder = 'model_weights/'
