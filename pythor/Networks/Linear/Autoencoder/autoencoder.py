@@ -10,13 +10,11 @@ from torch import optim
 import torch.autograd as autograd 
 from torch.autograd import Variable
 from torch.nn import functional as F
-from torch.utils.data import DataLoader, random_split
 
 from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning import loggers
 from pytorch_lightning.loggers import MLFlowLogger
 
 
@@ -131,6 +129,7 @@ class AutoEncoder(LightningModule):
 
         # NOTE Change dataloaders appropriately
         self.dataloaders = MNISTDataLoaders(save_path=os.getcwd())
+        self.telegrad_logs = {} # log everything you want to be reported via telegram here
 
     def __check_hparams(self, hparams):
         self.input_shape = hparams.input_shape if hasattr(hparams,'input_shape') else 784
@@ -148,6 +147,12 @@ class AutoEncoder(LightningModule):
         x = self.encoder(x)
         x = self.decoder(x)
         return x
+
+    def configure_optimizers(self):
+        """
+            Choose Optimizer
+        """
+        return optimizers[self.opt](self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
 
     def training_step(self, batch, batch_idx):
         """
@@ -169,31 +174,11 @@ class AutoEncoder(LightningModule):
         """
         avg_loss = torch.stack([x['trainer_loss'] for x in outputs]).mean()
         logs = {'trainer_loss_epoch': avg_loss}
-        self.loss = avg_loss.item()  # for telegram bot
+        self.telegrad_logs['lr'] = self.lr # for telegram bot
+        self.telegrad_logs['trainer_loss_epoch'] = avg_loss.item() # for telegram bot
         self.logger.log_metrics({'learning_rate':self.lr}) # if lr is changed by telegram bot
         return {'train_loss': avg_loss, 'log': logs}
 
-
-
-    def configure_optimizers(self):
-        """
-            Choose Optimizer
-        """
-        return optimizers[self.opt](self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-
-    def prepare_data(self):
-        """
-            Prepare the dataset by downloading it 
-            Will be run only for the first time if
-            dataset is not available
-        """
-        self.dataloaders.prepare_data()
-
-    def train_dataloader(self):
-        """
-            Refer dataset.py to make custom dataloaders
-        """
-        return self.dataloaders.train_dataloader(self.batch_size)
 
     def validation_step(self, batch, batch_idx):
         """
@@ -213,11 +198,9 @@ class AutoEncoder(LightningModule):
         """
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         logs = {'val_loss': avg_loss}
-        self.val_loss = avg_loss.item()   # for telegram bot
+        self.telegrad_logs['val_loss_epoch'] = avg_loss.item() # for telegram bot
         return {'val_loss': avg_loss, 'log': logs}
 
-    def val_dataloader(self):
-        return self.dataloaders.val_dataloader(self.batch_size)
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -230,8 +213,24 @@ class AutoEncoder(LightningModule):
     def test_epoch_end(self, outputs):
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         logs = {'test_loss': avg_loss}
-        print()
         return {'avg_test_loss': avg_loss, 'log': logs}
+    
+    def prepare_data(self):
+        """
+            Prepare the dataset by downloading it 
+            Will be run only for the first time if
+            dataset is not available
+        """
+        self.dataloaders.prepare_data()
+
+    def train_dataloader(self):
+        """
+            Refer dataset.py to make custom dataloaders
+        """
+        return self.dataloaders.train_dataloader(self.batch_size)
+
+    def val_dataloader(self):
+        return self.dataloaders.val_dataloader(self.batch_size)
 
     def test_dataloader(self):
         return self.dataloaders.test_dataloader(self.batch_size)

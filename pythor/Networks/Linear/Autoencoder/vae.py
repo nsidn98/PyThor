@@ -159,14 +159,17 @@ class VAE(LightningModule):
         recon_loss = torch.stack([x['train_recon_loss'] for x in outputs]).mean()
         kl_loss = torch.stack([x['train_kl_loss'] for x in outputs]).mean()
 
-        tensorboard_logs = {'train_elbo_loss_epoch': avg_loss,
+        logs = {'train_elbo_loss_epoch': avg_loss,
                             'val_recon_loss_epoch': recon_loss,
                             'val_kl_loss_epoch': kl_loss}
-        self.loss = avg_loss.item() # for telegram bot
+        self.telegrad_logs['lr'] = self.lr # for telegram bot
+        self.telegrad_logs['trainer_loss_epoch'] = avg_loss.item() # for telegram bot
+        self.telegrad_logs['train_recon_loss_epoch'] = recon_loss.item() # for telegram bot
+        self.telegrad_logs['train_kl_loss_epoch'] = kl_loss.item() # for telegram bot
         self.logger.log_metrics({'learning_rate':self.lr}) # if lr is changed by telegram bot
         return {
             'avg_val_loss': avg_loss,
-            'log': tensorboard_logs
+            'log': logs
         }
 
     def validation_step(self, batch, batch_idx):
@@ -184,13 +187,15 @@ class VAE(LightningModule):
         recon_loss = torch.stack([x['val_recon_loss'] for x in outputs]).mean()
         kl_loss = torch.stack([x['val_kl_div'] for x in outputs]).mean()
 
-        tensorboard_logs = {'val_elbo_loss': avg_loss,
+        logs = {'val_elbo_loss': avg_loss,
                             'val_recon_loss': recon_loss,
                             'val_kl_loss': kl_loss}
-        self.val_loss = avg_loss.item() # for telegram bot
+        self.telegrad_logs['val_loss_epoch'] = avg_loss.item() # for telegram bot
+        self.telegrad_logs['val_recon_loss_epoch'] = recon_loss.item() # for telegram bot
+        self.telegrad_logs['val__kl_loss_epoch'] = kl_loss.item() # for telegram bot
         return {
             'avg_val_loss': avg_loss,
-            'log': tensorboard_logs
+            'log': logs
         }
 
     def test_step(self, batch, batch_idx):
@@ -208,12 +213,12 @@ class VAE(LightningModule):
         recon_loss = torch.stack([x['test_recon_loss'] for x in outputs]).mean()
         kl_loss = torch.stack([x['test_kl_div'] for x in outputs]).mean()
 
-        tensorboard_logs = {'test_elbo_loss': avg_loss,
+        logs = {'test_elbo_loss': avg_loss,
                             'test_recon_loss': recon_loss,
                             'test_kl_loss': kl_loss}
         return {
             'avg_test_loss': avg_loss,
-            'log': tensorboard_logs
+            'log': logs
         }
 
     def configure_optimizers(self):

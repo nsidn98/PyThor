@@ -10,14 +10,11 @@ from torch import optim
 import torch.autograd as autograd 
 from torch.autograd import Variable
 from torch.nn import functional as F
-from torch.utils.data import DataLoader, random_split
 
 from pytorch_lightning.core.lightning import LightningModule
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.callbacks.base import Callback
-from pytorch_lightning import loggers
 from pytorch_lightning.loggers import MLFlowLogger
 
 from pythor.datamodules import MNISTDataLoaders
@@ -125,12 +122,10 @@ class MLP(LightningModule):
         """
         avg_loss = torch.stack([x['trainer_loss'] for x in outputs]).mean()
         logs = {'trainer_loss_epoch': avg_loss}
-        self.loss = avg_loss.item()  # for telegram bot
         self.telegrad_logs['lr'] = self.lr # for telegram bot
         self.telegrad_logs['trainer_loss_epoch'] = avg_loss.item() # for telegram bot
         self.logger.log_metrics({'learning_rate':self.lr}) # if lr is changed by telegram bot
         return {'train_loss': avg_loss, 'log': logs}
-
 
     def validation_step(self, batch, batch_idx):
         """
@@ -147,7 +142,6 @@ class MLP(LightningModule):
         """
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         logs = {'val_loss_epoch': avg_loss}
-        self.val_loss = avg_loss.item()   # for telegram bot
         self.telegrad_logs['val_loss_epoch'] = avg_loss.item() # for telegram bot
         return {'val_loss': avg_loss, 'log': logs}
     
@@ -181,7 +175,6 @@ class MLP(LightningModule):
     def test_dataloader(self):
         return self.dataloaders.test_dataloader(self.batch_size)
 
-    
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
