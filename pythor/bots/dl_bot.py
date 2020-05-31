@@ -53,8 +53,9 @@ class DLBot(object):
         self.stop_train_flag = False  # Stop training flag
         self.updater = None
         # Initialize loss monitoring
-        self.loss_hist = []
-        self.val_loss_hist = []
+        # self.loss_hist = []
+        # self.val_loss_hist = []
+        self.hist_logs = {}
         # Enable logging
         logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
         self.logger = logging.getLogger(__name__)
@@ -67,7 +68,6 @@ class DLBot(object):
                                " Send /setlr to change the learning rate.\n" \
                                " Send /quiet to stop getting automatic updates each epoch\n" \
                                " Send /plot to get a loss convergence plot.\n" \
-                               " Send /plotdiags to get a diagram plot.\n" \
                                " Send /stoptraining to stop training process.\n\n"
 
     def activate_bot(self):
@@ -83,8 +83,8 @@ class DLBot(object):
         dp.add_handler(CommandHandler("status", self.status, filters=self.filters))  # /get status
         dp.add_handler(CommandHandler("getlr", self.get_lr, filters=self.filters))  # /get learning rate
         dp.add_handler(CommandHandler("quiet", self.quiet, filters=self.filters))  # /stop automatic updates
-        dp.add_handler(CommandHandler("plot", self.plot_loss, filters=self.filters))  # /plot loss
-        dp.add_handler(CommandHandler("plotdiags", self.plot_diagrams, filters=self.filters))  # /plot other diagrams
+        # dp.add_handler(CommandHandler("plot", self.plot_loss, filters=self.filters))  # /plot loss
+        dp.add_handler(CommandHandler("plot", self.plot_diagrams, filters=self.filters))  # /plot other diagrams
         dp.add_handler(self.lr_handler())  # set learning rate
         dp.add_handler(self.stop_handler())  # stop training
 
@@ -222,54 +222,54 @@ class DLBot(object):
             fallbacks=[CommandHandler('cancel', self.cancel_stop, filters=self.filters)])
         return conv_handler
 
-    # Plot loss history
-    def plot_loss(self, bot, update):
-        """ Telegram bot callback for the /plot command. Replies with a convergence plot image"""
+    # # Plot loss history
+    # NOTE Deprecating because of the need to write a lot of boilerplate in lightning module
+    # def plot_loss(self, bot, update):
+    #     """ Telegram bot callback for the /plot command. Replies with a convergence plot image"""
 
-        if not self.loss_hist or plt is None:
-            # First epoch wasn't finished or matplotlib isn't installed
-            update.message.reply_text('No values in array',
-                                  reply_markup=ReplyKeyboardRemove())
-            return
-        loss_np = np.asarray(self.loss_hist)
-        # Check if training has a validation set
-        val_loss_np = np.asarray(self.val_loss_hist) if self.val_loss_hist else None
-        legend_keys = ['loss', 'val_loss'] if self.val_loss_hist else ['loss']
+    #     if not self.loss_hist or plt is None:
+    #         # First epoch wasn't finished or matplotlib isn't installed
+    #         update.message.reply_text('No values in array',
+    #                               reply_markup=ReplyKeyboardRemove())
+    #         return
+    #     loss_np = np.asarray(self.loss_hist)
+    #     # Check if training has a validation set
+    #     val_loss_np = np.asarray(self.val_loss_hist) if self.val_loss_hist else None
+    #     legend_keys = ['loss', 'val_loss'] if self.val_loss_hist else ['loss']
 
-        x = np.arange(len(loss_np))  # Epoch axes
-        fig = plt.figure()
-        ax = plt.axes()
-        ax.plot(x, loss_np, 'b')  # Plot training loss
-        if val_loss_np is not None:
-            ax.plot(x, val_loss_np, 'r')  # Plot val loss
-        plt.title('Loss Convergence')
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
-        ax.legend(legend_keys)
-        buffer = BytesIO()
-        fig.savefig(buffer, format='png')
-        buffer.seek(0)
-        update.message.reply_photo(buffer)  # Sent image to user
+    #     x = np.arange(len(loss_np))  # Epoch axes
+    #     fig = plt.figure()
+    #     ax = plt.axes()
+    #     ax.plot(x, loss_np, 'b')  # Plot training loss
+    #     if val_loss_np is not None:
+    #         ax.plot(x, val_loss_np, 'r')  # Plot val loss
+    #     plt.title('Loss Convergence')
+    #     plt.xlabel('Epoch')
+    #     plt.ylabel('Loss')
+    #     ax.legend(legend_keys)
+    #     buffer = BytesIO()
+    #     fig.savefig(buffer, format='png')
+    #     buffer.seek(0)
+    #     update.message.reply_photo(buffer)  # Sent image to user
 
     # Plot loss history
     def plot_diagrams(self, bot, update):
         # TODO add other functionalities for plotting
-        """ Telegram bot callback for the /plot command. Replies with a convergence plot image"""
-
-        if not self.loss_hist or plt is None:
-            # First epoch wasn't finished or matplotlib isn't installed
+        """ 
+            Telegram bot callback for the /plotdiags command. Replies with a convergence plot image
+        """
+        if not self.hist_logs:
+            # first epoch wasn't finished or matplotlib isn't installed
             return
-        loss_np = np.asarray(self.loss_hist)
-        # Check if training has a validation set
-        val_loss_np = np.asarray(self.val_loss_hist) if self.val_loss_hist else None
-        legend_keys = ['loss', 'val_loss'] if self.val_loss_hist else ['loss']
 
-        x = np.arange(len(loss_np))  # Epoch axes
+        legend_keys = list(self.hist_logs.keys())
+        vals = np.array(list(self.hist_logs.values()))
+        x = np.arange(len(vals[0])) # Epoch axes
         fig = plt.figure()
         ax = plt.axes()
-        ax.plot(x, loss_np, 'b')  # Plot training loss
-        if val_loss_np is not None:
-            ax.plot(x, val_loss_np, 'r')  # Plot val loss
+        for i in range(len(self.hist_logs.keys())):
+            ax.plot(x,vals[i],label=legend_keys[i])
+
         plt.title('Loss Convergence')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')

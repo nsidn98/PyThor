@@ -36,6 +36,7 @@ class TelegramBotCallback(Callback):
         super(TelegramBotCallback, self).__init__()
         self.kbot = kbot
         self.logs = {}
+        # self.hist_logs = {} # to store values to plot
 
     def on_train_start(self, trainer, pl_module):
         self.logs['lr'] = pl_module.lr # Add learning rate to logs dictionary
@@ -63,6 +64,9 @@ class TelegramBotCallback(Callback):
             self.kbot.send_message(message)
 
     def on_epoch_end(self, trainer, pl_module):
+        """
+            Store all your logs you want to plot in telegrad in self.telegrad_logs dict
+        """
 
         # Did user invoke STOP command 
         # NOTE Change HERE
@@ -73,22 +77,35 @@ class TelegramBotCallback(Callback):
             print('Training Stopped! Stop command sent via Telegram bot.')
             raise KeyboardInterrupt
 
+        self.logs = pl_module.telegrad_logs.copy()
+
         # LR handling
-        self.logs['lr'] = pl_module.lr
+        # self.logs['lr'] = pl_module.lr
         self.kbot.lr = self.logs['lr']  # Update bot's value of current LR
 
-        # Loss tracking
-        self.kbot.val_loss_hist.append(pl_module.val_loss)
-        self.logs['val_loss'] = pl_module.val_loss
+        # make arrays for plotting 
+        if pl_module.current_epoch == 0:
+            self.kbot.hist_logs = pl_module.telegrad_logs.copy()
+            for k in self.kbot.hist_logs.keys():
+                self.kbot.hist_logs[k] = [self.kbot.hist_logs[k]] # make lists
+        
+        else:
+            for k in self.kbot.hist_logs.keys():
+                self.kbot.hist_logs[k].append(self.logs[k])
+                
+        # NOTE Deprecating original telegrad repo method because of the need to write a lot of boilerplate in lightning module
+        # # Loss tracking
+        # self.kbot.val_loss_hist.append(pl_module.val_loss)
+        # self.logs['val_loss'] = pl_module.val_loss
 
-        self.kbot.loss_hist.append(pl_module.loss)
-        self.logs['loss'] = pl_module.loss
+        # self.kbot.loss_hist.append(pl_module.loss)
+        # self.logs['loss'] = pl_module.loss
+
         # self.loss_hist.append(self.logs['loss'])
         # if 'val_loss' in logs:
         #     self.val_loss_hist.append(self.logs['val_loss'])
         # self.kbot.loss_hist = self.loss_hist
         # self.kbot.val_loss_hist = self.val_loss_hist
-
 
         # Epoch message handling
         tlogs = ', '.join([k+': '+'{:.4f}'.format(v) for k, v in zip(self.logs.keys(), self.logs.values())])  # Clean logs string
