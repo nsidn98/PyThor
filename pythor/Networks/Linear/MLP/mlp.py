@@ -73,7 +73,7 @@ class MLP(LightningModule):
 
         # NOTE Change dataloaders appropriately
         self.dataloaders = MNISTDataLoaders(save_path=os.getcwd())
-
+        self.telegrad_logs = {} # log everything you want to be reported via telegram here
         
         self.fc = nn.Sequential(
             nn.Linear(self.input_shape, self.hidden_dim[0]),
@@ -106,19 +106,6 @@ class MLP(LightningModule):
         """
         return optimizers[self.opt](self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
 
-    def prepare_data(self):
-        """
-            Prepare the dataset by downloading it 
-            Will be run only for the first time if
-            dataset is not available
-        """
-        self.dataloaders.prepare_data()
-
-    def train_dataloader(self):
-        """
-            Refer dataset.py to make custom dataloaders
-        """
-        return self.dataloaders.train_dataloader(self.batch_size)
 
     def training_step(self, batch, batch_idx):
         """
@@ -139,11 +126,11 @@ class MLP(LightningModule):
         avg_loss = torch.stack([x['trainer_loss'] for x in outputs]).mean()
         logs = {'trainer_loss_epoch': avg_loss}
         self.loss = avg_loss.item()  # for telegram bot
+        self.telegrad_logs['lr'] = self.lr # for telegram bot
+        self.telegrad_logs['trainer_loss_epoch'] = avg_loss.item() # for telegram bot
         self.logger.log_metrics({'learning_rate':self.lr}) # if lr is changed by telegram bot
         return {'train_loss': avg_loss, 'log': logs}
 
-    def val_dataloader(self):
-        return self.dataloaders.val_dataloader(self.batch_size)
 
     def validation_step(self, batch, batch_idx):
         """
@@ -161,11 +148,9 @@ class MLP(LightningModule):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         logs = {'val_loss_epoch': avg_loss}
         self.val_loss = avg_loss.item()   # for telegram bot
+        self.telegrad_logs['val_loss_epoch'] = avg_loss.item() # for telegram bot
         return {'val_loss': avg_loss, 'log': logs}
     
-    def test_dataloader(self):
-        return self.dataloaders.test_dataloader(self.batch_size)
-
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
@@ -175,6 +160,26 @@ class MLP(LightningModule):
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         logs = {'test_loss_epoch': avg_loss}
         return {'avg_test_loss': avg_loss, 'log': logs}
+    
+    def prepare_data(self):
+        """
+            Prepare the dataset by downloading it 
+            Will be run only for the first time if
+            dataset is not available
+        """
+        self.dataloaders.prepare_data()
+
+    def train_dataloader(self):
+        """
+            Refer dataset.py to make custom dataloaders
+        """
+        return self.dataloaders.train_dataloader(self.batch_size)
+
+    def val_dataloader(self):
+        return self.dataloaders.val_dataloader(self.batch_size)
+    
+    def test_dataloader(self):
+        return self.dataloaders.test_dataloader(self.batch_size)
 
     
     @staticmethod
