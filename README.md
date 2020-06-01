@@ -5,7 +5,7 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
   <img src="https://media.giphy.com/media/WmuDTrWdBcOiKbrLFe/giphy.gif" width="400"/>
 </p>
 
-## Note: Work in Progress
+## Note: Work in Progress (Will add documentation on usage)
 
 ## Features:
 * Get model training updates on your phone on Telegram with the help of Telegrad.
@@ -43,3 +43,11 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
 * [Telegrad](https://github.com/eyalzk/telegrad) for monitoring training on mobile via telegram.
 * [OpenAI Gym](https://gym.openai.com/) for reinforcement learning environments.
 * [RDkit](https://www.rdkit.org/docs/Install.html) for graph neural networks example.
+
+## Usage:
+* First clone the repo:
+`git clone https://github.com/nsidn98/PyThor.git`
+* Change directory to the repo: `cd PyThor`
+* Then install all relevant libraries mentioned above.
+* Then run `python -W ignore pythor/Networks/Linear/MLP/mlp.py` which will run a linear MLP on the MNIST dataset.
+* Check other examples in Networks which include Linear, Convolutional and Graph
