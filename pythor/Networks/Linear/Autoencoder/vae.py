@@ -65,6 +65,7 @@ class VAE(LightningModule):
         self.hparams = hparams
 
         self.dataloaders = MNISTDataLoaders(save_path=os.getcwd())
+        self.telegrad_logs = {} # log everything you want to be reported via telegram here
 
         self.encoder = self.init_encoder(self.input_shape, self.hidden_dim, self.latent_dim)
         self.decoder = self.init_decoder(self.input_shape, self.hidden_dim, self.latent_dim)
@@ -168,7 +169,7 @@ class VAE(LightningModule):
         self.telegrad_logs['train_kl_loss_epoch'] = kl_loss.item() # for telegram bot
         self.logger.log_metrics({'learning_rate':self.lr}) # if lr is changed by telegram bot
         return {
-            'avg_val_loss': avg_loss,
+            'avg_train_loss': avg_loss,
             'log': logs
         }
 
