@@ -240,7 +240,7 @@ class GCN(LightningModule):
         roc,prc = self.getAUC(probs,self.true_test)
 
         logs = {'test_loss_epoch': avg_loss, 'roc_test':roc,'prc_test':prc,'acc_test':acc}
-        return {'test_loss': avg_loss,'roc_test':roc,'prc_test':prc,'acc_test':acc}
+        return {'test_loss': avg_loss,'roc_test':roc,'prc_test':prc,'acc_test':acc,'log':logs}
 
 
 
@@ -310,6 +310,7 @@ def main():
                         early_stop_callback=early_stopping,
                         fast_dev_run=False,                     # make this as True only to check for bugs
                         max_epochs=1000,
+                        min_epochs=20,
                         resume_from_checkpoint=None,            # change this to model_path
                         logger=mlf_logger,                      # mlflow logger
                         callbacks=[telegramCallback],           # telegrad
