@@ -50,4 +50,4 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
 * Change directory to the repo: `cd PyThor`
 * Then install all relevant libraries mentioned above.
 * Then run `python -W ignore pythor/Networks/Linear/MLP/mlp.py` which will run a linear MLP on the MNIST dataset.
-* Check other examples in Networks which include Linear, Convolutional and Graph
+* Check other examples in Networks which include Linear, Convolutional and Graph.
