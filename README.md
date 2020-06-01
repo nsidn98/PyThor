@@ -10,13 +10,13 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
 ## Features:
 * Get model training updates on your phone on Telegram with the help of Telegrad.
 <p align="center">
-  <img src="https://raw.githubusercontent.com/nsidn98/PyThor/master/assets/telegrad1.jpg?token=AGFGCMHJESNRVQLJIQ7RXOK63Z7QA" width="120"/>
-  <img src="https://raw.githubusercontent.com/nsidn98/PyThor/master/assets/telegrad2.jpg?token=AGFGCMF7OE3SM64B7XFGWO263Z7RY" width="125"/>
-  <img src="https://raw.githubusercontent.com/nsidn98/PyThor/master/assets/telegrad3.jpg?token=AGFGCMAWIBP22Z55BPLW5FK63Z7TS" width="118"/>
+  <img src="https://raw.githubusercontent.com/nsidn98/PyThor/master/assets/telegrad1.jpg?token=AGFGCMHJESNRVQLJIQ7RXOK63Z7QA" width="220"/>
+  <img src="https://raw.githubusercontent.com/nsidn98/PyThor/master/assets/telegrad2.jpg?token=AGFGCMF7OE3SM64B7XFGWO263Z7RY" width="228"/>
+  <img src="https://raw.githubusercontent.com/nsidn98/PyThor/master/assets/telegrad3.jpg?token=AGFGCMAWIBP22Z55BPLW5FK63Z7TS" width="216"/>
 </p>
 * Log experiment hyperparameters and training losses with MLflow.
 <p align="center">
-  <img src="https://raw.githubusercontent.com/nsidn98/PyThor/master/assets/mlflow.png?token=AGFGCMF4Z3UMETYNUAV5U6K63Z7I6" width="400"/>
+  <img src="https://raw.githubusercontent.com/nsidn98/PyThor/master/assets/mlflow.png?token=AGFGCMF4Z3UMETYNUAV5U6K63Z7I6" width="800"/>
 </p>
 * Utilise Pytorch-Lightning to streamline the code and write less boilerplate.
 
