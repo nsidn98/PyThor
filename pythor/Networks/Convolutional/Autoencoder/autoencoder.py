@@ -188,16 +188,17 @@ def main():
     parser = AutoEncoder.add_model_specific_args(parser)
     args = parser.parse_args()
 
-    save_folder = 'model_weights/'
+    experiment_name = 'ConvAutoencoder'
+    save_folder = 'model_weights/' + experiment_name
     if not os.path.exists(save_folder):
         os.mkdir(save_folder)
     early_stopping = EarlyStopping('val_loss')
     # saves checkpoints to 'save_folder' whenever 'val_loss' has a new min
     checkpoint_callback = ModelCheckpoint(
-                            filepath=save_folder+'model_{epoch:02d}-{val_loss:.2f}')
+                            filepath=save_folder+'/model_{epoch:02d}-{val_loss:.2f}')
     # tb_logger = loggers.TensorBoardLogger('logs')
     mlf_logger = MLFlowLogger(
-                                experiment_name="ConvAutoencoder",
+                                experiment_name=experiment_name,
                                 tracking_uri="file:./mlruns"
                                 )
 

@@ -1,5 +1,6 @@
 """
-    Graph Convolutional Network (GCN) for graph classification
+    Dynamic Edge-Conditioned Filters in Convolutional Neural Networks on Graphs" for graph classification
+    https://arxiv.org/abs/1704.02901
     Graph will be classified to one of the classes
     Example provided for covid drug design challenge by MIT aicures.
 """
@@ -14,7 +15,7 @@ from torch import optim
 import torch.nn.functional as F
 from torch.nn import Linear
 from torch.nn import BatchNorm1d
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GCNConv, NNConv
 from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool
 
 from pytorch_lightning.core.lightning import LightningModule
@@ -47,9 +48,26 @@ optimizers = {
     'rmsprop': optim.RMSprop,
     }
 
-class GCN(LightningModule):
+class EdgeNet(torch.nn.Module):
+    '''
+    For edge features
+    '''
+    def __init__(self,num_edge_features,in_channels,out_channels,hidden_dims=[64,64]):
+        super(EdgeNet,self).__init__()
+        self.lin1 = Linear(num_edge_features,hidden_dims[0])
+        self.lin2 = Linear(hidden_dims[0],hidden_dims[1])
+        self.lin3 = Linear(hidden_dims[1],in_channels*out_channels)
+        
+    def forward(self,x):
+        x = F.relu(self.lin1(x))
+        x = F.relu(self.lin2(x))
+        x = F.relu(self.lin3(x))
+        return x
+
+
+class EdgeConv(LightningModule):
     def __init__(self, hparams=None):
-        super(GCN, self).__init__()
+        super(EdgeConv, self).__init__()
         """
         Graph Convolutional Network for graph classification
         Parameters to be included in hparams
@@ -65,9 +83,6 @@ class GCN(LightningModule):
             Check : https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html#module-torch_geometric.nn.glob
             Default : mean
             Options : mean, add, max
-        dropout : float
-            Percentage of dropout
-            Default : 0.2
         activation : str
             One of 'relu', 'sigmoid' or 'tanh'.
             Default : 'relu'
@@ -102,10 +117,14 @@ class GCN(LightningModule):
         self.true_test = [] # to store the true labels in each epoch to calculate roc and prc
         self.correct_test = 0 # number of correct predictions in each epoch (validation)
 
-        self.conv1 = GCNConv(self.n_features, 128, cached=False) # if you defined cache=True, the shape of batch must be same!
+        self.edgenet1 = EdgeNet(6,self.n_features,128)
+        self.conv1 = NNConv(self.n_features, 128, nn=self.edgenet1) # if you defined cache=True, the shape of batch must be same!
         self.bn1 = BatchNorm1d(128)
-        self.conv2 = GCNConv(128, 64, cached=False)
+        
+        self.edgenet2 = EdgeNet(6,128,64)
+        self.conv2 = NNConv(128, 64, nn=self.edgenet2)
         self.bn2 = BatchNorm1d(64)
+        
         self.fc1 = Linear(64, 64)
         self.bn3 = BatchNorm1d(64)
         self.fc2 = Linear(64, 64)
@@ -126,11 +145,12 @@ class GCN(LightningModule):
     
     def forward(self, data):
         x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
-        x = self.act(self.conv1(x, edge_index))
+        # print(x.shape,edge_attr.shape)
+        x = self.act(self.conv1(x, edge_index,edge_attr))
         x = self.bn1(x)
-        x = self.act(self.conv2(x, edge_index))
+        x = self.act(self.conv2(x, edge_index,edge_attr))
         x = self.bn2(x)
-        x = self.pool(x, data.batch)
+        x = global_add_pool(x, data.batch)
         x = self.act(self.fc1(x))
         x = self.bn3(x)
         x = self.act(self.fc2(x))
@@ -139,6 +159,7 @@ class GCN(LightningModule):
         x = F.log_softmax(x, dim=1)
         # x = F.softmax(x, dim=1)
         return x 
+
 
     def configure_optimizers(self):
         """
@@ -288,11 +309,11 @@ def main():
     parser = ArgumentParser()
     # using this will log all params in mlflow board automatically
     parser = Trainer.add_argparse_args(parser) 
-    parser = GCN.add_model_specific_args(parser)
+    parser = EdgeConv.add_model_specific_args(parser)
     args = parser.parse_args()
 
-    experiment_name = "gcn"
-    save_folder = 'model_weights/' + experiment_name
+    experiment_name = 'EdgeConv'
+    save_folder = 'model_weights/'+experiment_name
     if not os.path.exists(save_folder):
         os.mkdir(save_folder)
     early_stopping = EarlyStopping('prc_val')
@@ -311,7 +332,7 @@ def main():
     bot = DLBot(token=token, user_id=user_id)
     telegramCallback = TelegramBotCallback(bot)
 
-    model = GCN(args)
+    model = EdgeConv(args)
 
     trainer = Trainer(checkpoint_callback=checkpoint_callback,
                         early_stop_callback=early_stopping,
