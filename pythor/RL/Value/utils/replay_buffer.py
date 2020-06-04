@@ -1,39 +1,7 @@
 import numpy as np
 import math, random
+import collections
 from torch.utils.data import IterableDataset
-
-class ReplayBuffer(object):
-    """
-        Replay Buffer for storing 
-        states, actions, rewards, next_state and done (s,a,r,s,d)
-    """
-    def __init__(self, capacity):
-        """
-            Parameters:
-            -----------
-            capacity : int
-                Capacity of the buffer to store (s,a,r,s,d) tuples
-                The tuples will get dequed once the buffer gets full
-        """
-        self.buffer = deque(maxlen=capacity)
-    
-    def push(self, state, action, reward, next_state, done):
-        """
-            Push the transitions
-        """
-        state      = np.expand_dims(state, 0)
-        next_state = np.expand_dims(next_state, 0)
-        self.buffer.append((state, action, reward, next_state, done))
-    
-    def sample(self, batch_size):
-        """
-            Sample transitions
-        """
-        state, action, reward, next_state, done = zip(*random.sample(self.buffer, batch_size))
-        return np.concatenate(state), action, reward, np.concatenate(next_state), done
-    
-    def __len__(self):
-        return len(self.buffer)
 
 
 # Named tuple for storing experience steps gathered in training
@@ -88,3 +56,36 @@ class RLDataset(IterableDataset):
         states, actions, rewards, dones, new_states = self.buffer.sample(self.sample_size)
         for i in range(len(dones)):
             yield states[i], actions[i], rewards[i], dones[i], new_states[i]
+
+# class ReplayBuffer(object):
+#     """
+#         Replay Buffer for storing 
+#         states, actions, rewards, next_state and done (s,a,r,s,d)
+#     """
+#     def __init__(self, capacity):
+#         """
+#             Parameters:
+#             -----------
+#             capacity : int
+#                 Capacity of the buffer to store (s,a,r,s,d) tuples
+#                 The tuples will get dequed once the buffer gets full
+#         """
+#         self.buffer = deque(maxlen=capacity)
+    
+#     def push(self, state, action, reward, next_state, done):
+#         """
+#             Push the transitions
+#         """
+#         state      = np.expand_dims(state, 0)
+#         next_state = np.expand_dims(next_state, 0)
+#         self.buffer.append((state, action, reward, next_state, done))
+    
+#     def sample(self, batch_size):
+#         """
+#             Sample transitions
+#         """
+#         state, action, reward, next_state, done = zip(*random.sample(self.buffer, batch_size))
+#         return np.concatenate(state), action, reward, np.concatenate(next_state), done
+    
+#     def __len__(self):
+#         return len(self.buffer)

@@ -21,16 +21,44 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
 * Utilise Pytorch-Lightning to streamline the code and write less boilerplate.
 
 ## Templates included (planned):
-* Linear Neural Networks: MLP, Linear Autoencoder, Linear Variational Autoencoder, GAN
-* Convolutional Neural Networks: CNN, Convolutional Autoencoder, Convolutional Variational Autoencoder, Convolutional GAN
+* Linear Neural Networks:
+  * [MLP](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Linear/MLP/mlp.py)
+  * [Linear Autoencoder](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Linear/Autoencoder/autoencoder.py)
+  * [Linear Variational Autoencoder](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Linear/Autoencoder/vae.py)
+  * GAN
+* Convolutional Neural Networks:
+  * [CNN](https://github.com/nsidn98/PyThor/tree/master/pythor/Networks/Convolutional/Conv)
+  * [Convolutional Autoencoder](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Convolutional/Autoencoder/autoencoder.py)
+  * [Convolutional Variational Autoencoder](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Convolutional/Autoencoder/vae.py)
+  * Convolutional GAN
 * Graph Neural Networks: 
-  * Graph Classification: Graph Conv, NNConv
-  * Node Classification
+  * Graph Classification: 
+    * [Graph Conv](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Graph/graph_classification/gcn.py)
+    * [Edge Conv](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Graph/graph_classification/nnConv.py)
+  * Node Classification:
+    * Graph Conv
+    * Edge Conv
 * RL algorithms: 
-  * Value based: DQN, DDQN, DDDQN, Priority DQN, RAINBOW
-  * Policy based: REINFORCE, DDPG, TD3
-  * Actor-Critic: A2C, A3C, SAC, PPO, TRPO
-  * Imitation Learning: Behaviour Cloning, GAIL, DAgger
+  * Value based: 
+    * DQN
+    * DDQN
+    * DDDQN
+    * Priority DQN
+    * RAINBOW
+  * Policy based:
+    * REINFORCE
+    * DDPG
+    * TD3
+  * Actor-Critic: 
+    * A2C
+    * A3C
+    * SAC
+    * PPO
+    * TRPO
+  * Imitation Learning: 
+    * Behaviour Cloning
+    * GAIL
+    * DAgger
   * If time permits: HER, ACER, ACKTR
 
 

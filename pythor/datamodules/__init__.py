@@ -2,4 +2,5 @@ from pythor.datamodules.dataloaders_base import ThorDataLoaders
 from pythor.datamodules.cifar10_dataloaders import CIFAR10DataLoaders
 from pythor.datamodules.mnist_dataloaders import MNISTDataLoaders
 from pythor.datamodules.molecule_dataloader import MoleculeDataloaders
+from pythor.datamodules.rl_dataloader import RLDataset, Experience
 # from pythor.datamodules.stl10_dataloaders import STL10DataLoaders
