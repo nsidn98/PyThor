@@ -27,6 +27,9 @@ from pythor.RL.Value.utils.replay_buffer import ReplayBuffer
 from pythor.datamodules.rl_dataloader import RLDataset, Experience
 # from pythor.RL.Value.dqn import DQNAgent, DQNetwork, CnnDQNetwork
 from pythor.RL.common.wrappers import make_atari, wrap_deepmind, wrap_pytorch
+from pythor.bots.rlCallback import TelegramRLCallback
+from pythor.bots.rl_bot import RLBot
+from pythor.bots.config import telegram_config
 
 
 ACTS = {
@@ -40,7 +43,14 @@ optimizers = {
     'adamax': optim.Adamax,
     'rmsprop': optim.RMSprop,
     }
-    
+
+# class ModelCheckpoint(pytorch_lightning.Callback):
+#     def on_epoch_end(self, trainer, pl_module):
+#         metrics = trainer.callback_metrics
+#         metrics['epoch'] = trainer.current_epoch
+#         if trainer.disable_validation:
+#             trainer.checkpoint_callback.on_validation_end(trainer, pl_module)
+
 class ValueRL(LightningModule):
     """ Value based RL algorithms """
 
@@ -50,6 +60,12 @@ class ValueRL(LightningModule):
         self.gamma = hparams.gamma
         self.env_name = hparams.env_name # example: 'CartPole-v0
         self.env_type = hparams.env_type # 'linear' or 'cnn'
+
+        # telegrad
+        self.telegrad_logs = {}
+        self.telegrad_rewards = []
+        self.lr = hparams.lr # for telegrad
+        self.reward_hist = []
 
         # import algo file
         import_string = 'pythor.RL.Value.'
@@ -139,24 +155,51 @@ class ValueRL(LightningModule):
         if self.trainer.use_dp or self.trainer.use_ddp2:
             loss = loss.unsqueeze(0)
 
+        log = {'total_reward': torch.tensor(self.total_reward).to(device),
+               'reward': torch.tensor(reward).to(device),
+               'steps': torch.tensor(self.global_step).to(device)}
+
+        progress_bar = log.copy()
+
         if done:
             self.total_reward = self.episode_reward
             self.episode_reward = 0
+            log['episode_reward'] = torch.tensor(self.total_reward).to(device)
+            self.telegrad_rewards.append(self.total_reward) # telegrad
+            self.reward_hist.append(self.total_reward)
         
         # Soft update of target network NOTE Check according to algo
         if self.global_step % self.hparams.sync_rate == 0:
             self.agent.update_target(self.net,self.target_net)
 
-        log = {'total_reward': torch.tensor(self.total_reward).to(device),
-               'reward': torch.tensor(reward).to(device),
-               'steps': torch.tensor(self.global_step).to(device)}
+        # self.telegrad_rewards.append(self.total_reward) # telegrad
+        return OrderedDict({'loss': loss, 'log': log, 'progress_bar': progress_bar})
 
-        return OrderedDict({'loss': loss, 'log': log, 'progress_bar': log})
+    def training_epoch_end(self, outputs):
+        log = {'learning_rate': self.lr}
+        stop_flag, mean_rew = self.check_convergence()
+        self.telegrad_logs={'rewards':self.telegrad_rewards.copy(), 'lr':self.lr, 'mean_rew':np.round(mean_rew,3)} # telegrad
+        self.telegrad_rewards.clear() # clear the list
+        if stop_flag:
+            print('#'*50)
+            print('\nStopping because rewards converged\n')
+            print('#'*50)
+            raise KeyboardInterrupt
+        return {'log':log}
 
     def configure_optimizers(self):
         """ Initialize Adam optimizer"""
         optimizer = optimizers[self.hparams.opt](self.net.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
         return [optimizer]
+
+    def check_convergence(self):
+        stop_training = False
+        mean_rew = np.mean(np.array(self.reward_hist))
+        if len(self.reward_hist) > 100:
+            mean_rew = np.mean(np.array(self.reward_hist[:-100]))
+            if mean_rew > self.hparams.env_max_rew:
+                stop_training = True
+        return stop_training, mean_rew
 
     def train_dataloader(self) -> DataLoader:
         """Initialize the Replay Buffer dataset used for retrieving experiences"""
@@ -168,16 +211,31 @@ class ValueRL(LightningModule):
         
 def main(hparams) -> None:
     model = ValueRL(hparams)
+    experiment_name = hparams.algo_name
+
+    save_folder = 'model_weights/' + experiment_name
+    if not os.path.exists(save_folder):
+        os.mkdir(save_folder)
+    
+    checkpoint_callback = ModelCheckpoint(
+                            filepath=save_folder+'/model_{epoch:02d}')
+
     mlf_logger = MLFlowLogger(
-                                experiment_name='dqn',
+                                experiment_name=experiment_name,
                                 tracking_uri="file:./mlruns"
                                 )
 
-    trainer = Trainer(
+    # telegram
+    token = telegram_config['token']
+    user_id = telegram_config['user_id']
+    bot = RLBot(token=token, user_id=user_id)
+    telegramCallback = TelegramRLCallback(bot)
+    trainer = Trainer(checkpoint_callback=checkpoint_callback,
         max_epochs=10000,
         early_stop_callback=False,
         val_check_interval=100,
         logger=mlf_logger,
+        callbacks=[telegramCallback],
     )
 
     trainer.fit(model)
@@ -194,6 +252,7 @@ if __name__ == '__main__':
     parser.add_argument("--env_name", type=str, default="CartPole-v0", help="gym environment tag")
     parser.add_argument('--env_type', type=str, default='linear', choices=['linear', 'cnn'], help= 'type of network to use')
     parser.add_argument("--episode_length", type=int, default=200, help="max length of an episode")
+    parser.add_argument("--env_max_rew", type=int, default=195, help="avg rewards in 100 episodes to stop training")
     parser.add_argument("--warm_start_steps", type=int, default=1000, help="max episode reward in the environment")
     # rl agent
     parser.add_argument("--gamma", type=float, default=0.99, help="discount factor")

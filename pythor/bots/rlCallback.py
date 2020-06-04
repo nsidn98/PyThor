@@ -1,20 +1,17 @@
 """ Deep Learning Telegram bot
-DLBot and TelegramBotCallback classes for the monitoring and control
-training process using a Telegram bot
+Bot for monitoring RL agent training
 Original Code By: Eyal Zakkay, 2019
 https://eyalzk.github.io/
 """
 
-# from keras.callbacks import Callback
-# import keras.backend as K
-
-from pythor.bots.dl_bot import DLBot
+from pythor.bots.rl_bot import RLBot
 from pytorch_lightning.callbacks.base import Callback
 from pytorch_lightning.callbacks import EarlyStopping
 import signal
+import numpy as np
 import sys
 
-class TelegramBotCallback(Callback):
+class TelegramRLCallback(Callback):
     """Callback that sends metrics and responds to Telegram Bot.
     Supports the following commands:
      /start: activate automatic updates every epoch
@@ -29,11 +26,12 @@ class TelegramBotCallback(Callback):
         kbot: Instance of the DLBot class, holding the appropriate bot token
     # Raises
         TypeError: In case kbot is not a DLBot instance.
+    Usage: store rl rewards in self.telegrad_logs={'reward':[0.001, 0.1,..., 0.2]} in training_step
     """
 
     def __init__(self, kbot):
-        assert isinstance(kbot, DLBot), 'Bot must be an instance of the DLBot class'
-        super(TelegramBotCallback, self).__init__()
+        assert isinstance(kbot, RLBot), 'Bot must be an instance of the DLBot class'
+        super(TelegramRLCallback, self).__init__()
         self.kbot = kbot
         self.logs = {}
         # self.hist_logs = {} # to store values to plot
@@ -44,13 +42,11 @@ class TelegramBotCallback(Callback):
         self.kbot.activate_bot()  # Activate the telegram bot
 
         self.epochs = pl_module.current_epoch
-        # loss history tracking
-        self.loss_hist = []
-        self.val_loss_hist = []
     
     def on_train_end(self, trainer, pl_module):
         self.kbot.send_message('Train Completed!')
         self.kbot.stop_bot()
+        trainer.checkpoint_callback.on_epoch_end()
 
     def on_epoch_start(self, trainer, pl_module):
         if self.kbot.modify_lr != 1:
@@ -66,6 +62,7 @@ class TelegramBotCallback(Callback):
     def on_epoch_end(self, trainer, pl_module):
         """
             Store all your logs you want to plot in telegrad in self.telegrad_logs dict
+            Give only telegrad_logs={'rewards':list, 'lr': self.lr}
         """
 
         # Did user invoke STOP command 
@@ -78,7 +75,7 @@ class TelegramBotCallback(Callback):
             raise KeyboardInterrupt
 
         self.logs = pl_module.telegrad_logs.copy()
-
+        # print(self.logs)
         # LR handling
         # self.logs['lr'] = pl_module.lr
         self.kbot.lr = self.logs['lr']  # Update bot's value of current LR
@@ -87,32 +84,31 @@ class TelegramBotCallback(Callback):
         if pl_module.current_epoch == 0:
             self.kbot.hist_logs = pl_module.telegrad_logs.copy()
             for k in self.kbot.hist_logs.keys():
-                self.kbot.hist_logs[k] = [self.kbot.hist_logs[k]] # make lists
+                if k != 'rewards':
+                    self.kbot.hist_logs[k] = [self.kbot.hist_logs[k]] # make lists
+                else:
+                    self.kbot.hist_logs[k] = self.kbot.hist_logs[k]
         
         else:
             for k in self.kbot.hist_logs.keys():
-                self.kbot.hist_logs[k].append(self.logs[k])
+                # self.kbot.hist_logs[k].append(self.logs[k])
+                if type(self.logs[k])==list:
+                    self.kbot.hist_logs[k].extend(self.logs[k]) # changing to extend because telegrad_logs only has rewards stored in a list
+                else:
+                    self.kbot.hist_logs[k].append(self.logs[k])
                 
-        # NOTE Deprecating original telegrad repo method because of the need to write a lot of boilerplate in lightning module
-        # # Loss tracking
-        # self.kbot.val_loss_hist.append(pl_module.val_loss)
-        # self.logs['val_loss'] = pl_module.val_loss
-
-        # self.kbot.loss_hist.append(pl_module.loss)
-        # self.logs['loss'] = pl_module.loss
-
-        # self.loss_hist.append(self.logs['loss'])
-        # if 'val_loss' in logs:
-        #     self.val_loss_hist.append(self.logs['val_loss'])
-        # self.kbot.loss_hist = self.loss_hist
-        # self.kbot.val_loss_hist = self.val_loss_hist
 
         # Epoch message handling
-        tlogs = ', '.join([k+': '+'{:.4f}'.format(v) for k, v in zip(self.logs.keys(), self.logs.values())])  # Clean logs string
+        tlogs = 'Episodes: ' + str(len(self.kbot.hist_logs['rewards'])) + '\nLatest Rewards Avg: ' + str(self.logs['mean_rew']) +\
+                '\nSteps: ' + str(pl_module.global_step)
         message = 'Epoch %d/%d \n' % (pl_module.current_epoch + 1, trainer.max_epochs) + tlogs
+        # tlogs = ', '.join([k+': '+'{:.4f}'.format(v) for k, v in zip(self.logs.keys(), self.logs.values())])  # Clean logs string
+        # message = 'Epoch %d/%d \n' % (pl_module.current_epoch + 1, trainer.max_epochs) + tlogs
+        # NOTE removing epoch updates
         # Send epoch end logs
-        if self.kbot.verbose:
-            self.kbot.send_message(message)
+        # if self.kbot.verbose:
+        #     self.kbot.send_message(message)
+        ###################################
         # Update status message
         self.kbot.set_status(message)
 
