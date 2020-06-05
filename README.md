@@ -78,6 +78,7 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
 `git clone https://github.com/nsidn98/PyThor.git`
 * Change directory to the repo: `cd PyThor`
 * Then install all relevant libraries mentioned above.
+* Setup telegram messaging by following the steps [here](https://github.com/nsidn98/PyThor/tree/master/pythor/bots#set-up)
 * Then run `python -W ignore pythor/Networks/Linear/MLP/mlp.py` which will run a linear MLP on the MNIST dataset.
 * Check other examples in Networks which include Linear, Convolutional and Graph.
 * For RL algorithms check the [RL folder](https://github.com/nsidn98/PyThor/tree/master/pythor/RL). **Note:** The algorithms have been segregated according to their types.

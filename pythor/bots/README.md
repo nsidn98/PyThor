@@ -12,7 +12,7 @@ The original repository can be found [here](https://github.com/eyalzk/telegrad).
     * Search @userinfobot in the search bar in Telegram.
     * Type `/start` to get your user ID.
 
-Fill in your user ID and bot token in [`config.py`](https://github.com/nsidn98/PyThor/blob/master/pythor/bots/config.py)
+Create a file called `config.py` in this folder and fill in your user ID and bot token in it. Code given below.
 
 ```
 
