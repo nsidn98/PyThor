@@ -1,3 +1,7 @@
+"""
+    Linear networks for noisy networks
+"""
+
 import math
 import torch
 import torch.nn as nn

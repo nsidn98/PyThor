@@ -1,6 +1,8 @@
 #code from openai
 #https://github.com/openai/baselines/blob/master/baselines/deepq/replay_buffer.py
-
+"""
+    Some codes for future reference for different types of replay buffers
+"""
 import numpy as np
 import random
 

@@ -1,3 +1,6 @@
+"""
+    Wrappers for image based environments in openai gym
+"""
 import numpy as np
 from collections import deque
 import gym

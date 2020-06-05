@@ -44,13 +44,6 @@ optimizers = {
     'rmsprop': optim.RMSprop,
     }
 
-# class ModelCheckpoint(pytorch_lightning.Callback):
-#     def on_epoch_end(self, trainer, pl_module):
-#         metrics = trainer.callback_metrics
-#         metrics['epoch'] = trainer.current_epoch
-#         if trainer.disable_validation:
-#             trainer.checkpoint_callback.on_validation_end(trainer, pl_module)
-
 class ValueRL(LightningModule):
     """ Value based RL algorithms """
 

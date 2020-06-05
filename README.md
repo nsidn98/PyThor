@@ -39,11 +39,12 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
     * Graph Conv
     * Edge Conv
 * RL algorithms: 
-  * Value based: 
-    * DQN
-    * DDQN
-    * DDDQN
-    * Priority DQN
+  * [Value based](https://github.com/nsidn98/PyThor/tree/master/pythor/RL/Value): 
+    * Deep Q-Networks
+    * Double Deep Q-Networks
+    * Dueling Double Deep Q-Networks
+    * Prioritized Replay Buffer for Q-Learning
+    * Noisy Deep Q-Networks
     * RAINBOW
   * Policy based:
     * REINFORCE
