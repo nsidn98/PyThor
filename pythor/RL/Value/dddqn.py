@@ -52,23 +52,35 @@ class Network(nn.Module):
             Options : 'relu', 'tanh', 'sigmoid'
         Can be used for OpenAI gym type environments like CartPole-v0, etc.
     """
-    def __init__(self, input_shape, num_actions,activation):
+    def __init__(self, input_shape, num_actions, activation):
         super(Network, self).__init__()
         self.input_shape = input_shape
         self.num_actions = num_actions
         self.act = ACTS[activation]
-
-        self.layers = nn.Sequential(
+        
+        self.feature = nn.Sequential(
             nn.Linear(input_shape, 128),
-            self.act(),
+            self.act()
+        )
+
+        self.advantage = nn.Sequential(
             nn.Linear(128, 128),
             self.act(),
             nn.Linear(128, num_actions)
         )
 
+        self.value = nn.Sequential(
+            nn.Linear(128, 128),
+            self.act(),
+            nn.Linear(128, 1)
+        )
+        
     def forward(self, x):
-        return self.layers(x.float())
-
+        x = self.feature(x.float())
+        advantage = self.advantage(x)
+        value     = self.value(x)
+        return value + advantage - advantage.mean()
+    
 class CnnNetwork(nn.Module):
     """
         Network for DQN function approximation
@@ -93,7 +105,7 @@ class CnnNetwork(nn.Module):
             env    = wrap_pytorch(env)
         for environment to be compatible
     """
-    def __init__(self, input_shape, num_actions,activation):
+    def __init__(self, input_shape, num_outputs, activation):
         super(CnnNetwork, self).__init__()
         
         self.input_shape = input_shape
@@ -109,21 +121,27 @@ class CnnNetwork(nn.Module):
             self.act()
         )
         
-        self.fc = nn.Sequential(
+        self.advantage = nn.Sequential(
             nn.Linear(self.feature_size(), 512),
             self.act(),
-            nn.Linear(512, self.num_actions)
+            nn.Linear(512, num_outputs)
+        )
+        
+        self.value = nn.Sequential(
+            nn.Linear(self.feature_size(), 512),
+            self.act(),
+            nn.Linear(512, 1)
         )
         
     def forward(self, x):
         x = self.features(x.float())
         x = x.view(x.size(0), -1)
-        x = self.fc(x)
-        return x
+        advantage = self.advantage(x)
+        value     = self.value(x)
+        return value + advantage  - advantage.mean()
     
     def feature_size(self):
         return self.features(autograd.Variable(torch.zeros(1, *self.input_shape))).view(1, -1).size(1)
-
 
 
 class Agent:
@@ -173,14 +191,17 @@ class Agent:
 
         return action
     
-    def compute_td_loss(self, net: nn.Module, target_net: nn.Module = None, batch: Tuple[torch.Tensor, torch.Tensor]):
+    def compute_td_loss(self, net: nn.Module, target_net: nn.Module, batch: Tuple[torch.Tensor, torch.Tensor]):
         states, actions, rewards, dones, next_states = batch
         dones = dones.type(torch.FloatTensor)
-        q_values = net(states)
-        next_q_values = net(next_states)
 
-        q_value          = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
-        next_q_value     = next_q_values.max(1)[0]
+        q_values = net(states)
+
+        with torch.no_grad():
+            next_q_values = target_net(next_states)
+            
+        q_value = q_values.gather(1, actions.unsqueeze(1)).squeeze(1) 
+        next_q_value = next_q_values.max(1)[0]
         expected_q_value = rewards + self.hparams.gamma * next_q_value * (1 - dones)
         
         # loss = (q_value - (expected_q_value.data)).pow(2).mean()
@@ -218,6 +239,4 @@ class Agent:
         return reward, done
 
     def update_target(self, net:nn.Module, target_net:nn.Module):
-        # target_net.load_state_dict(net.state_dict())
-        # Not required for DQN
-        pass
+        target_net.load_state_dict(net.state_dict())

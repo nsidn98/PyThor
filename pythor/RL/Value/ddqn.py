@@ -52,12 +52,12 @@ class Network(nn.Module):
             Options : 'relu', 'tanh', 'sigmoid'
         Can be used for OpenAI gym type environments like CartPole-v0, etc.
     """
-    def __init__(self, input_shape, num_actions,activation):
+    def __init__(self, input_shape, num_actions, activation):
         super(Network, self).__init__()
         self.input_shape = input_shape
         self.num_actions = num_actions
         self.act = ACTS[activation]
-
+        
         self.layers = nn.Sequential(
             nn.Linear(input_shape, 128),
             self.act(),
@@ -65,9 +65,10 @@ class Network(nn.Module):
             self.act(),
             nn.Linear(128, num_actions)
         )
-
+        
     def forward(self, x):
         return self.layers(x.float())
+    
 
 class CnnNetwork(nn.Module):
     """
@@ -93,7 +94,7 @@ class CnnNetwork(nn.Module):
             env    = wrap_pytorch(env)
         for environment to be compatible
     """
-    def __init__(self, input_shape, num_actions,activation):
+    def __init__(self, input_shape, num_actions, activation):
         super(CnnNetwork, self).__init__()
         
         self.input_shape = input_shape
@@ -123,7 +124,6 @@ class CnnNetwork(nn.Module):
     
     def feature_size(self):
         return self.features(autograd.Variable(torch.zeros(1, *self.input_shape))).view(1, -1).size(1)
-
 
 
 class Agent:
@@ -173,14 +173,18 @@ class Agent:
 
         return action
     
-    def compute_td_loss(self, net: nn.Module, target_net: nn.Module = None, batch: Tuple[torch.Tensor, torch.Tensor]):
+    def compute_td_loss(self, net: nn.Module, target_net: nn.Module, batch: Tuple[torch.Tensor, torch.Tensor]):
         states, actions, rewards, dones, next_states = batch
         dones = dones.type(torch.FloatTensor)
+
         q_values = net(states)
         next_q_values = net(next_states)
 
-        q_value          = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
-        next_q_value     = next_q_values.max(1)[0]
+        with torch.no_grad():
+            next_q_state_values = target_net(next_states)
+            
+        q_value = q_values.gather(1, actions.unsqueeze(1)).squeeze(1) 
+        next_q_value = next_q_state_values.gather(1, torch.max(next_q_values, 1)[1].unsqueeze(1)).squeeze(1)
         expected_q_value = rewards + self.hparams.gamma * next_q_value * (1 - dones)
         
         # loss = (q_value - (expected_q_value.data)).pow(2).mean()
@@ -218,6 +222,4 @@ class Agent:
         return reward, done
 
     def update_target(self, net:nn.Module, target_net:nn.Module):
-        # target_net.load_state_dict(net.state_dict())
-        # Not required for DQN
-        pass
+        target_net.load_state_dict(net.state_dict())

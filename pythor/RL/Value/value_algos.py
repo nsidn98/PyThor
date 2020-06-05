@@ -97,9 +97,9 @@ class ValueRL(LightningModule):
 
         self.buffer = ReplayBuffer(self.hparams.replay_size)
 
-        # self.agent = DQNAgent(self.env, self.buffer, self.hparams)
         self.agent = algo.Agent(self.env, self.buffer, self.hparams)
-        # self.agent = Agent(self.env, self.buffer)
+
+        self.agent.update_target(self.net,self.target_net) # sync the networks
         
         self.total_reward = 0
         self.episode_reward = 0
@@ -150,7 +150,7 @@ class ValueRL(LightningModule):
         self.episode_reward += reward
 
         # calculate training loss
-        loss = self.agent.compute_td_loss(self.net, batch)
+        loss = self.agent.compute_td_loss(self.net, self.target_net, batch)
 
         if self.trainer.use_dp or self.trainer.use_ddp2:
             loss = loss.unsqueeze(0)
