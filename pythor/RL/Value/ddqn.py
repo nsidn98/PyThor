@@ -1,3 +1,6 @@
+"""
+    Double Deep Q-Networks
+"""
 import os
 import random
 import gym
@@ -182,7 +185,7 @@ class Agent:
 
         with torch.no_grad():
             next_q_state_values = target_net(next_states)
-            
+
         q_value = q_values.gather(1, actions.unsqueeze(1)).squeeze(1) 
         next_q_value = next_q_state_values.gather(1, torch.max(next_q_values, 1)[1].unsqueeze(1)).squeeze(1)
         expected_q_value = rewards + self.hparams.gamma * next_q_value * (1 - dones)
@@ -191,6 +194,30 @@ class Agent:
         loss = nn.MSELoss()(q_value,expected_q_value)
 
         return loss
+
+    def priority_compute_td_loss(self, net: nn.Module, target_net: nn.Module, batch: Tuple[torch.Tensor, torch.Tensor]):
+        """
+            If priority buffer used
+        """
+        states, actions, rewards, dones, next_states, indices, weights = batch
+        dones = dones.type(torch.FloatTensor)
+
+        q_values = net(states)
+        next_q_values = net(next_states)
+
+        with torch.no_grad():
+            next_q_state_values = target_net(next_states)
+
+        q_value          = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
+        next_q_value = next_q_state_values.gather(1, torch.max(next_q_values, 1)[1].unsqueeze(1)).squeeze(1)
+        expected_q_value = rewards + self.hparams.gamma * next_q_value * (1 - dones)
+        
+        loss = (q_value - (expected_q_value.data)).pow(2)*weights
+        priors = loss + 1e-5
+        loss = loss.mean()
+        # loss = nn.MSELoss()(q_value,expected_q_value)
+
+        return loss, indices, priors
 
     @torch.no_grad()
     def play_step(self, net: nn.Module, epsilon: float = 0.0, device: str = 'cpu'):

@@ -37,55 +37,61 @@ class ReplayBuffer:
         return (np.array(states), np.array(actions), np.array(rewards, dtype=np.float32),
                 np.array(dones, dtype=np.bool), np.array(next_states))
 
-class RLDataset(IterableDataset):
-    """
-    Iterable Dataset containing the ReplayBuffer
-    This will be used in the lightning module for the agent
-    for dataloder
-    which will be updated with new experiences during training
-    Args:
-        buffer: replay buffer
-        sample_size: number of experiences to sample at a time
-    """
+class PrioritizedBuffer:
+    def __init__(self, capacity: int, prob_alpha: float = 0.6, beta_start: float = 0.4, beta_frames: int = 1000):
+        self.prob_alpha = prob_alpha
+        self.capacity = capacity
+        self.buffer = collections.deque(maxlen=capacity)
+        # self.buffer = []
+        self.beta_start = beta_start
+        self.beta_frames = beta_frames
+        self.update_beta(0)
+        self.pos = 0
+        self.priorities = np.zeros((capacity,), dtype=np.float32)
 
-    def __init__(self, buffer: ReplayBuffer, sample_size: int = 200):
-        self.buffer = buffer
-        self.sample_size = sample_size
+    def append(self,  experience: Experience):
+        max_prior = self.priorities.max() if self.buffer else 1.0
 
-    def __iter__(self):
-        states, actions, rewards, dones, new_states = self.buffer.sample(self.sample_size)
-        for i in range(len(dones)):
-            yield states[i], actions[i], rewards[i], dones[i], new_states[i]
+        if len(self.buffer) < self.capacity:
+            self.buffer.append(experience)
+        else:
+            self.buffer[self.pos] = experience
 
-# class ReplayBuffer(object):
-#     """
-#         Replay Buffer for storing 
-#         states, actions, rewards, next_state and done (s,a,r,s,d)
-#     """
-#     def __init__(self, capacity):
-#         """
-#             Parameters:
-#             -----------
-#             capacity : int
-#                 Capacity of the buffer to store (s,a,r,s,d) tuples
-#                 The tuples will get dequed once the buffer gets full
-#         """
-#         self.buffer = deque(maxlen=capacity)
-    
-#     def push(self, state, action, reward, next_state, done):
-#         """
-#             Push the transitions
-#         """
-#         state      = np.expand_dims(state, 0)
-#         next_state = np.expand_dims(next_state, 0)
-#         self.buffer.append((state, action, reward, next_state, done))
-    
-#     def sample(self, batch_size):
-#         """
-#             Sample transitions
-#         """
-#         state, action, reward, next_state, done = zip(*random.sample(self.buffer, batch_size))
-#         return np.concatenate(state), action, reward, np.concatenate(next_state), done
-    
-#     def __len__(self):
-#         return len(self.buffer)
+        self.priorities[self.pos] = max_prior
+        self.pos = (self.pos + 1) % self.capacity
+
+    def sample(self, batch_size: int, beta: float=0.4):
+        if len(self.buffer) == self.capacity:
+            prios = self.priorities
+        else:
+            prios = self.priorities[:self.pos]
+
+        probs = prios ** self.prob_alpha
+        probs /= probs.sum()
+
+        indices = np.random.choice(len(self.buffer), batch_size, p=probs, replace=False)
+        states, actions, rewards, dones, next_states = zip(*[self.buffer[idx] for idx in indices])
+
+        total = len(self.buffer)
+        weights = (total * probs[indices]) ** (-beta)
+        weights /= weights.max()
+        weights  = np.array(weights, dtype=np.float32)
+
+        states = np.array(states)
+        actions = np.array(actions)
+        rewards = np.array(rewards, dtype=np.float32)
+        dones = np.array(dones, dtype=np.bool)
+        next_states = np.array(next_states)
+
+        return states, actions, rewards, dones, next_states, indices, weights
+
+    def __len__(self):
+        return len(self.buffer)
+
+    def update_beta(self,step:int):
+        self.beta = min(1.0, self.beta_start + step * (1.0 - self.beta_start) / self.beta_frames)
+
+    def update_priorities(self, batch_indices, batch_priorities):
+        for idx, prior in zip(batch_indices, batch_priorities):
+            self.priorities[idx] = prior
+

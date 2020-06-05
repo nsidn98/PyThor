@@ -40,7 +40,7 @@ class TelegramRLCallback(Callback):
     def on_train_start(self, trainer, pl_module):
         self.logs['lr'] = pl_module.lr # Add learning rate to logs dictionary
         self.kbot.lr = self.logs['lr']  # Update bot's value of current LR
-        self.kbot.activate_bot()  # Activate the telegram bot
+        self.kbot.activate_bot()  # Activate the telegram bot NOTE check here for internet connections
 
         self.epochs = pl_module.current_epoch
     

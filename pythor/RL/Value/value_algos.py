@@ -23,8 +23,8 @@ from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import MLFlowLogger
 
-from pythor.RL.Value.utils.replay_buffer import ReplayBuffer
-from pythor.datamodules.rl_dataloader import RLDataset, Experience
+from pythor.RL.Value.utils.replay_buffer import ReplayBuffer, PrioritizedBuffer
+from pythor.datamodules.rl_dataloader import RLDataset, PriorityRLDataset, Experience
 # from pythor.RL.Value.dqn import DQNAgent, DQNetwork, CnnDQNetwork
 from pythor.RL.common.wrappers import make_atari, wrap_deepmind, wrap_pytorch
 from pythor.bots.rlCallback import TelegramRLCallback
@@ -94,8 +94,11 @@ class ValueRL(LightningModule):
             # self.net = CnnDQNetwork(obs_shape, n_actions, hparams.activation)
             if self.hparams.algo_name != 'dqn':
                 self.target_net = algo.CnnNetwork(obs_shape, n_actions, hparams.activation)
-
-        self.buffer = ReplayBuffer(self.hparams.replay_size)
+        
+        if self.hparams.priority:
+            self.buffer = PrioritizedBuffer(self.hparams.replay_size, beta_start=self.hparams.beta_start, beta_frames=self.hparams.beta_frames)
+        else:
+            self.buffer = ReplayBuffer(self.hparams.replay_size)
 
         self.agent = algo.Agent(self.env, self.buffer, self.hparams)
 
@@ -150,7 +153,13 @@ class ValueRL(LightningModule):
         self.episode_reward += reward
 
         # calculate training loss
-        loss = self.agent.compute_td_loss(self.net, self.target_net, batch)
+        if self.hparams.priority:
+            # loss and updates for priority buffer
+            loss, indices, priors = self.agent.priority_compute_td_loss(self.net, self.target_net, batch)
+            self.agent.replay_buffer.update_priorities(indices,priors.data.cpu().numpy())
+            self.agent.replay_buffer.update_beta(self.global_step)
+        else:
+            loss = self.agent.compute_td_loss(self.net, self.target_net, batch)
 
         if self.trainer.use_dp or self.trainer.use_ddp2:
             loss = loss.unsqueeze(0)
@@ -203,7 +212,11 @@ class ValueRL(LightningModule):
 
     def train_dataloader(self) -> DataLoader:
         """Initialize the Replay Buffer dataset used for retrieving experiences"""
-        dataset = RLDataset(self.agent.replay_buffer, self.hparams.episode_length)
+        if self.hparams.priority:
+            dataset = PriorityRLDataset(self.agent.replay_buffer, self.hparams.episode_length)
+        else:
+            dataset = RLDataset(self.agent.replay_buffer, self.hparams.episode_length)
+
         dataloader = DataLoader(dataset=dataset,
                                 batch_size=self.hparams.batch_size,
                                 )
@@ -253,11 +266,15 @@ if __name__ == '__main__':
     parser.add_argument('--env_type', type=str, default='linear', choices=['linear', 'cnn'], help= 'type of network to use')
     parser.add_argument("--episode_length", type=int, default=200, help="max length of an episode")
     parser.add_argument("--env_max_rew", type=int, default=195, help="avg rewards in 100 episodes to stop training")
-    parser.add_argument("--warm_start_steps", type=int, default=1000, help="max episode reward in the environment")
+    parser.add_argument("--warm_start_steps", type=int, default=1000, help="warm up steps in the environment before training")
     # rl agent
     parser.add_argument("--gamma", type=float, default=0.99, help="discount factor")
-    parser.add_argument("--replay_size", type=int, default=1000, help="capacity of the replay buffer")
     parser.add_argument("--sync_rate", type=int, default=10, help="how many frames do we update the target network")
+    # replay buffer
+    parser.add_argument("--replay_size", type=int, default=100000, help="capacity of the replay buffer")
+    parser.add_argument("--priority", type=int, default=0, help="Whether use priority buffer or not")
+    parser.add_argument("-beta_start", type= float, default=0.4, help="Initial beta for priority buffer")
+    parser.add_argument("-beta_frames", type= int, default=1000, help="Number of frames for increase beta to 1.0 for priority buffer")
     # exploration
     parser.add_argument("--eps_last_frame", type=int, default=1000, help="what frame should epsilon stop decaying")
     parser.add_argument("--eps_start", type=float, default=1.0, help="starting value of epsilon")

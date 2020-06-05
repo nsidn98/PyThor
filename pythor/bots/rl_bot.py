@@ -247,6 +247,7 @@ class RLBot(object):
         plt.title('Rewards')
         plt.xlabel('Episode')
         plt.ylabel('Reward')
+        plt.grid()
         ax.legend(legend_keys)
         buffer = BytesIO()
         fig.savefig(buffer, format='png')
