@@ -3,7 +3,8 @@ Bot for monitoring RL agent training
 Original Code By: Eyal Zakkay, 2019
 https://eyalzk.github.io/
 """
-
+import mlflow
+import mlflow.pytorch
 from pythor.bots.rl_bot import RLBot
 from pytorch_lightning.callbacks.base import Callback
 from pytorch_lightning.callbacks import EarlyStopping
@@ -46,7 +47,8 @@ class TelegramRLCallback(Callback):
     def on_train_end(self, trainer, pl_module):
         self.kbot.send_message('Train Completed!')
         self.kbot.stop_bot()
-        trainer.checkpoint_callback.on_epoch_end()
+        # trainer.checkpoint_callback.on_epoch_end()
+        mlflow.pytorch.log_model(pl_module.net, "runs:/" + pl_module.logger.run_id + "/model_weights")
 
     def on_epoch_start(self, trainer, pl_module):
         if self.kbot.modify_lr != 1:

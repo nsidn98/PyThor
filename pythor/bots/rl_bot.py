@@ -222,10 +222,16 @@ class RLBot(object):
             fallbacks=[CommandHandler('cancel', self.cancel_stop, filters=self.filters)])
         return conv_handler
 
+    def running_mean(self,x, N):
+        """
+            # TODO: add filtering process by getting the window size from user to get rewards plot
+            Get a moving average to smoothen out the rewards plot
+        """
+        cumsum = np.cumsum(np.insert(x, 0, 0)) 
+        return (cumsum[N:] - cumsum[:-N]) / float(N)
 
     # Plot loss history
     def plot_diagrams(self, bot, update):
-        # TODO add other functionalities for plotting
         """ 
             Telegram bot callback for the /plotdiags command. Replies with a rewards plot image
         """
