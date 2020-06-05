@@ -5,7 +5,7 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
   <img src="https://media.giphy.com/media/WmuDTrWdBcOiKbrLFe/giphy.gif" width="400"/>
 </p>
 
-## Note: Work in Progress (Will add documentation on usage)
+## Note: Work in Progress
 
 ## Features:
 * Get model training updates on your phone on Telegram with the help of Telegrad.
@@ -14,7 +14,7 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
   <img src="https://raw.githubusercontent.com/nsidn98/PyThor/master/assets/telegrad2.jpg?token=AGFGCMF7OE3SM64B7XFGWO263Z7RY" width="228"/>
   <img src="https://raw.githubusercontent.com/nsidn98/PyThor/master/assets/telegrad3.jpg?token=AGFGCMAWIBP22Z55BPLW5FK63Z7TS" width="216"/>
 </p>
-* Log experiment hyperparameters and training losses with MLflow.
+* Log experiment hyperparameters, metrics and training losses with MLflow.
 <p align="center">
   <img src="https://raw.githubusercontent.com/nsidn98/PyThor/master/assets/mlflow.png?token=AGFGCMF4Z3UMETYNUAV5U6K63Z7I6" width="800"/>
 </p>
@@ -80,3 +80,5 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
 * Then install all relevant libraries mentioned above.
 * Then run `python -W ignore pythor/Networks/Linear/MLP/mlp.py` which will run a linear MLP on the MNIST dataset.
 * Check other examples in Networks which include Linear, Convolutional and Graph.
+* For RL algorithms check the [RL folder](https://github.com/nsidn98/PyThor/tree/master/pythor/RL). **Note:** The algorithms have been segregated according to their types.
+* The MLflow board data will be stored in `mlruns`. To view the mlflow board run `mlflow ui` which will open it on local host. This will store all the parameters used in the experiment, the metrics obtained during the experiment. You can add tags to each of the experiment.
