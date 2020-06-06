@@ -7,7 +7,8 @@ https://eyalzk.github.io/
 
 # from keras.callbacks import Callback
 # import keras.backend as K
-
+import mlflow
+import mlflow.pytorch
 from pythor.bots.dl_bot import DLBot
 from pytorch_lightning.callbacks.base import Callback
 from pytorch_lightning.callbacks import EarlyStopping
@@ -51,6 +52,14 @@ class TelegramBotCallback(Callback):
     def on_train_end(self, trainer, pl_module):
         self.kbot.send_message('Train Completed!')
         self.kbot.stop_bot()
+        # save weights in mlflow and model_weights/
+        store_path = "model_weights/"+ pl_module.logger.experiment_name + "/" + pl_module.logger.run_id + '/final_model.ckpt'
+        print('#'*50)
+        print('Saving Weights in MLflow run and '+ store_path)
+        print('#'*50)
+        trainer.save_checkpoint(store_path)
+        # mlflow.pytorch.save_model(pl_module, store_path)
+        pl_module.logger.experiment.log_artifact(pl_module.logger.run_id, "model_weights/"+ pl_module.logger.experiment_name + "/" + pl_module.logger.run_id)
 
     def on_epoch_start(self, trainer, pl_module):
         if self.kbot.modify_lr != 1:

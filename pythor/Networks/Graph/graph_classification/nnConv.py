@@ -313,18 +313,22 @@ def main():
     args = parser.parse_args()
 
     experiment_name = 'EdgeConv'
-    save_folder = 'model_weights/'+experiment_name
-    if not os.path.exists(save_folder):
-        os.mkdir(save_folder)
-    early_stopping = EarlyStopping('prc_val')
-    # saves checkpoints to 'save_folder' whenever 'val_loss' has a new min
-    checkpoint_callback = ModelCheckpoint(
-                            filepath=save_folder+'/model_{epoch:02d}-{prc_val:.2f}')
     # tb_logger = loggers.TensorBoardLogger('logs')
     mlf_logger = MLFlowLogger(
                                 experiment_name=experiment_name,
                                 tracking_uri="file:./mlruns"
                                 )
+    save_folder = 'model_weights/' + experiment_name + '/'
+    if not os.path.exists(save_folder):
+        os.mkdir(save_folder)
+    save_folder = save_folder + mlf_logger.run_id + '/'
+    if not os.path.exists(save_folder):
+        os.mkdir(save_folder)
+
+    early_stopping = EarlyStopping('prc_val')
+    # saves checkpoints to 'save_folder' whenever 'val_loss' has a new min
+    checkpoint_callback = ModelCheckpoint(
+                            filepath=save_folder+'/model_{epoch:02d}-{prc_val:.2f}')
 
     # telegram
     token = telegram_config['token']

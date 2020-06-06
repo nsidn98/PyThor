@@ -47,8 +47,13 @@ class TelegramRLCallback(Callback):
     def on_train_end(self, trainer, pl_module):
         self.kbot.send_message('Train Completed!')
         self.kbot.stop_bot()
-        # trainer.checkpoint_callback.on_epoch_end()
-        mlflow.pytorch.log_model(pl_module.net, "runs:/" + pl_module.logger.run_id + "/model_weights")
+        # save weights in mlflow and model_weights/
+        store_path = "model_weights/"+ pl_module.logger.experiment_name + "/" + pl_module.logger.run_id
+        print('#'*50)
+        print('Saving Weights in MLflow run and '+ store_path)
+        print('#'*50)
+        mlflow.pytorch.save_model(pl_module.net, store_path)
+        pl_module.logger.experiment.log_artifact(pl_module.logger.run_id, store_path)
 
     def on_epoch_start(self, trainer, pl_module):
         if self.kbot.modify_lr != 1:
