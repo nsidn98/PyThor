@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.autograd as autograd 
+torch.autograd.set_detect_anomaly(True)
 import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.utils.data.dataset import IterableDataset
@@ -69,11 +70,11 @@ class ValueRL(LightningModule):
             self.env = gym.make(self.env_name)
             obs_shape = self.env.observation_space.shape[0]
             n_actions = self.env.action_space.n
-            self.net = algo.Network(obs_shape, n_actions, hparams.activation)
+            self.net = algo.Network(obs_shape, n_actions, hparams.activation, hparams)
             self.target_net = None
             # self.net = DQNetwork(obs_shape, n_actions, hparams.activation)
             if self.hparams.algo_name != 'dqn':
-                self.target_net = algo.Network(obs_shape, n_actions, hparams.activation)
+                self.target_net = algo.Network(obs_shape, n_actions, hparams.activation, hparams)
 
         if self.env_type == 'cnn':
             env = make_atari(self.env_name)
@@ -82,11 +83,11 @@ class ValueRL(LightningModule):
             obs_shape = self.env.observation_space.shape # example (480,280,3)
             obs_shape = np.roll(np.array(obs_shape),1) # (3, 480, 280)
             n_actions = self.env.action_space.n
-            self.net = algo.CnnNetwork(obs_shape, n_actions, hparams.activation)
+            self.net = algo.CnnNetwork(obs_shape, n_actions, hparams.activation, hparams)
             self.target_net = None
             # self.net = CnnDQNetwork(obs_shape, n_actions, hparams.activation)
             if self.hparams.algo_name != 'dqn':
-                self.target_net = algo.CnnNetwork(obs_shape, n_actions, hparams.activation)
+                self.target_net = algo.CnnNetwork(obs_shape, n_actions, hparams.activation, hparams)
         
         if self.hparams.priority:
             self.buffer = PrioritizedBuffer(self.hparams.replay_size, beta_start=self.hparams.beta_start, beta_frames=self.hparams.beta_frames)
@@ -144,6 +145,11 @@ class ValueRL(LightningModule):
         
         reward, done = self.agent.play_step(self.net, epsilon, device)
         self.episode_reward += reward
+
+        if self.hparams.noisy:
+            self.net.reset_noise()
+            if self.target_net:
+                self.target_net.reset_noise()
 
         # calculate training loss
         if self.hparams.priority:
@@ -216,7 +222,6 @@ class ValueRL(LightningModule):
         return dataloader
         
 def main(hparams) -> None:
-    model = ValueRL(hparams)
     experiment_name = hparams.algo_name
 
     save_folder = 'model_weights/' + experiment_name
@@ -243,7 +248,7 @@ def main(hparams) -> None:
         logger=mlf_logger,
         callbacks=[telegramCallback],
     )
-
+    model = ValueRL(hparams)
     trainer.fit(model)
 
 
@@ -254,6 +259,7 @@ if __name__ == '__main__':
     # algo
     parser.add_argument("--algo_name", type=str, default='dqn', choices=['dqn','ddqn', 'dddqn'],
                         help='Name of RL algorithm to use')
+    parser.add_argument("--noisy", type=int, default=0, help="Whether to use noisy networks or not")
     # environment
     parser.add_argument("--env_name", type=str, default="CartPole-v0", help="gym environment tag")
     parser.add_argument('--env_type', type=str, default='linear', choices=['linear', 'cnn'], help= 'type of network to use')

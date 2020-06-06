@@ -26,6 +26,7 @@ from pytorch_lightning.loggers import MLFlowLogger
 
 from pythor.RL.Value.utils.replay_buffer import ReplayBuffer
 from pythor.datamodules.rl_dataloader import RLDataset, Experience
+from pythor.RL.common.layers import NoisyLinear # for noisy networks
 # from PyThor.pythor.RL.common.wrappers import make_atari, wrap_deepmind, wrap_pytorch
 
 ACTS = {
@@ -42,7 +43,7 @@ optimizers = {
 
 class Network(nn.Module):
     """
-        Network for DQN function approximation
+        Network for DDDQN function approximation
         Parameters:
         -----------
         input_shape : int
@@ -53,30 +54,47 @@ class Network(nn.Module):
             Non linear activation for layers
             Default : 'relu'
             Options : 'relu', 'tanh', 'sigmoid'
+        hparams.noisy : bool
+            Whether to use noisy networks (https://arxiv.org/abs/1706.10295) for exploration
+            Default : False
         Can be used for OpenAI gym type environments like CartPole-v0, etc.
     """
-    def __init__(self, input_shape, num_actions, activation):
+    def __init__(self, input_shape, num_actions, activation, hparams):
         super(Network, self).__init__()
         self.input_shape = input_shape
         self.num_actions = num_actions
         self.act = ACTS[activation]
+        self.noisy = hparams.noisy
         
         self.feature = nn.Sequential(
             nn.Linear(input_shape, 128),
             self.act()
         )
-
-        self.advantage = nn.Sequential(
-            nn.Linear(128, 128),
+        if self.noisy:
+            self.advantage = nn.Sequential(
+            NoisyLinear(128, 128),
             self.act(),
-            nn.Linear(128, num_actions)
-        )
+            NoisyLinear(128, num_actions)
+            )
 
-        self.value = nn.Sequential(
-            nn.Linear(128, 128),
-            self.act(),
-            nn.Linear(128, 1)
-        )
+            self.value = nn.Sequential(
+                NoisyLinear(128, 128),
+                self.act(),
+                NoisyLinear(128, 1)
+            )
+        
+        else:
+            self.advantage = nn.Sequential(
+                nn.Linear(128, 128),
+                self.act(),
+                nn.Linear(128, num_actions)
+            )
+
+            self.value = nn.Sequential(
+                nn.Linear(128, 128),
+                self.act(),
+                nn.Linear(128, 1)
+            )
         
     def forward(self, x):
         x = self.feature(x.float())
@@ -84,9 +102,18 @@ class Network(nn.Module):
         value     = self.value(x)
         return value + advantage - advantage.mean()
     
+    def reset_noise(self):
+        # for noisy networks
+        for i in range(len(self.advantage)):
+            if isinstance(self.advantage[i], NoisyLinear):
+                self.advantage[i].reset_noise()  # this will call reset_noise() defined in NoisyLinear
+        for i in range(len(self.value)):
+            if isinstance(self.value[i], NoisyLinear):
+                self.value[i].reset_noise()  # this will call reset_noise() defined in NoisyLinear
+    
 class CnnNetwork(nn.Module):
     """
-        Network for DQN function approximation
+        Network for DDDQN function approximation
         where states are images
         Parameters:
         -----------
@@ -99,6 +126,9 @@ class CnnNetwork(nn.Module):
             Non linear activation for layers
             Default : 'relu'
             Options : 'relu', 'tanh', 'sigmoid'
+        hparams.noisy : bool
+            Whether to use noisy networks (https://arxiv.org/abs/1706.10295) for exploration
+            Default : False
         Can be used for OpenAI gym-Atari type environments like PongNoFrameskip-v4, etc.
         NOTE: will have to use 
             from common.wrappers import make_atari, wrap_deepmind, wrap_pytorch
@@ -108,12 +138,13 @@ class CnnNetwork(nn.Module):
             env    = wrap_pytorch(env)
         for environment to be compatible
     """
-    def __init__(self, input_shape, num_outputs, activation):
+    def __init__(self, input_shape, num_outputs, activation, hparams):
         super(CnnNetwork, self).__init__()
         
         self.input_shape = input_shape
         self.num_actions = num_actions
         self.act = ACTS[activation]
+        self.noisy = hparams.noisy
         
         self.features = nn.Sequential(
             nn.Conv2d(input_shape[0], 32, kernel_size=8, stride=4),
@@ -123,18 +154,30 @@ class CnnNetwork(nn.Module):
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             self.act()
         )
-        
-        self.advantage = nn.Sequential(
-            nn.Linear(self.feature_size(), 512),
+        if self.noisy:
+            self.advantage = nn.Sequential(
+            NoisyLinear(self.feature_size(), 512),
             self.act(),
-            nn.Linear(512, num_outputs)
-        )
+            NoisyLinear(512, num_outputs)
+            )
         
-        self.value = nn.Sequential(
-            nn.Linear(self.feature_size(), 512),
-            self.act(),
-            nn.Linear(512, 1)
-        )
+            self.value = nn.Sequential(
+                NoisyLinear(self.feature_size(), 512),
+                self.act(),
+                NoisyLinear(512, 1)
+            )
+        else:
+            self.advantage = nn.Sequential(
+                nn.Linear(self.feature_size(), 512),
+                self.act(),
+                nn.Linear(512, num_outputs)
+            )
+            
+            self.value = nn.Sequential(
+                nn.Linear(self.feature_size(), 512),
+                self.act(),
+                nn.Linear(512, 1)
+            )
         
     def forward(self, x):
         x = self.features(x.float())
@@ -142,6 +185,15 @@ class CnnNetwork(nn.Module):
         advantage = self.advantage(x)
         value     = self.value(x)
         return value + advantage  - advantage.mean()
+
+    def reset_noise(self):
+        # for noisy networks
+        for i in range(len(self.advantage)):
+            if isinstance(self.advantage[i], NoisyLinear):
+                self.advantage[i].reset_noise()  # this will call reset_noise() defined in NoisyLinear
+        for i in range(len(self.value)):
+            if isinstance(self.value[i], NoisyLinear):
+                self.value[i].reset_noise()  # this will call reset_noise() defined in NoisyLinear
     
     def feature_size(self):
         return self.features(autograd.Variable(torch.zeros(1, *self.input_shape))).view(1, -1).size(1)
@@ -156,7 +208,7 @@ class Agent:
         replay_buffer: replay buffer storing experiences
     """
     def __init__(self, env: gym.Env, replay_buffer: ReplayBuffer, hparams: argparse.Namespace):
-        self.hparams =hparams
+        self.hparams = hparams
         self.replay_buffer = replay_buffer
         self.env = env
 
@@ -190,6 +242,7 @@ class Agent:
 
             q_values = net(state)
             _, action = torch.max(q_values, dim=1)
+            # NOTE that action has been converted to int. May need to change to float for custom envs
             action = int(action.item())
 
         return action

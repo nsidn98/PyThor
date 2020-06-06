@@ -9,7 +9,11 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 class NoisyLinear(nn.Module):
-    def __init__(self, in_features, out_features, use_cuda, std_init=0.4):
+    """
+        Noisy Networks for Exploration
+        https://arxiv.org/abs/1706.10295
+    """
+    def __init__(self, in_features, out_features, use_cuda=False, std_init=0.4):
         super(NoisyLinear, self).__init__()
         
         self.use_cuda     = use_cuda
