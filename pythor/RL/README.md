@@ -7,11 +7,9 @@ This folder contains the following algorithms:
 * Double Deep Q-Networks
 * Dueling Double Deep Q-Networks
 * Prioritized Replay Buffer for Q-Learning
-
-
-<!-- * Noisy Deep Q-Networks -->
+* Noisy Deep Q-Networks
 <!-- * RAINBOW -->
-
+Value based algorithms support both vector-based and image-based environment.
 <!-- ## Policy:
 * REINFORCE
 * DDPG

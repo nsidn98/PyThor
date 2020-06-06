@@ -91,10 +91,10 @@ class TelegramRLCallback(Callback):
         if pl_module.current_epoch == 0:
             self.kbot.hist_logs = pl_module.telegrad_logs.copy()
             for k in self.kbot.hist_logs.keys():
-                if k != 'rewards':
-                    self.kbot.hist_logs[k] = [self.kbot.hist_logs[k]] # make lists
-                else:
+                if type(self.logs[k]) == list:
                     self.kbot.hist_logs[k] = self.kbot.hist_logs[k]
+                else:
+                    self.kbot.hist_logs[k] = [self.kbot.hist_logs[k]] # make lists
         
         else:
             for k in self.kbot.hist_logs.keys():

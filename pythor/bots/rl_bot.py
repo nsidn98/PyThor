@@ -67,7 +67,8 @@ class RLBot(object):
                                " Send /getlr to query the current learning rate.\n" \
                                " Send /setlr to change the learning rate.\n" \
                                " Send /quiet to stop getting automatic updates each epoch\n" \
-                               " Send /plot to get a loss convergence plot.\n" \
+                               " Send /plot to get a episodic rewards plot.\n" \
+                               " Send /plot_test to get a test episodic rewards plot.\n" \
                                " Send /stoptraining to stop training process.\n\n"
 
     def activate_bot(self):
@@ -83,8 +84,8 @@ class RLBot(object):
         dp.add_handler(CommandHandler("status", self.status, filters=self.filters))  # /get status
         dp.add_handler(CommandHandler("getlr", self.get_lr, filters=self.filters))  # /get learning rate
         dp.add_handler(CommandHandler("quiet", self.quiet, filters=self.filters))  # /stop automatic updates
-        # dp.add_handler(CommandHandler("plot", self.plot_loss, filters=self.filters))  # /plot loss
-        dp.add_handler(CommandHandler("plot", self.plot_diagrams, filters=self.filters))  # /plot other diagrams
+        dp.add_handler(CommandHandler("plot", self.plot_rewards, filters=self.filters))  # /plot episodic rewards in training
+        dp.add_handler(CommandHandler("plot_test", self.plot_test_rewards, filters=self.filters))  # /plot episodic rewards in testing
         dp.add_handler(self.lr_handler())  # set learning rate
         dp.add_handler(self.stop_handler())  # stop training
 
@@ -230,10 +231,10 @@ class RLBot(object):
         cumsum = np.cumsum(np.insert(x, 0, 0)) 
         return (cumsum[N:] - cumsum[:-N]) / float(N)
 
-    # Plot loss history
-    def plot_diagrams(self, bot, update):
+    # Plot episodic rewards
+    def plot_rewards(self, bot, update):
         """ 
-            Telegram bot callback for the /plotdiags command. Replies with a rewards plot image
+            Telegram bot callback for the /plot command. Replies with a rewards plot image
         """
         if not self.hist_logs:
             # first epoch wasn't finished or matplotlib isn't installed
@@ -245,6 +246,32 @@ class RLBot(object):
         ax.plot(rewards)
 
         plt.title('Rewards')
+        plt.xlabel('Episode')
+        plt.ylabel('Reward')
+        plt.grid()
+        ax.legend(legend_keys)
+        buffer = BytesIO()
+        fig.savefig(buffer, format='png')
+        buffer.seek(0)
+        update.message.reply_photo(buffer)  # Sent image to user
+
+    # Plot episodic rewards
+    def plot_test_rewards(self, bot, update):
+        """ 
+            Telegram bot callback for the /plot_test command. Replies with a rewards plot image
+            This plot gives the rewards obtained after testing the model for one episode after 
+            model.hparams.test_env_steps 
+        """
+        if not self.hist_logs:
+            # first epoch wasn't finished or matplotlib isn't installed
+            return
+        legend_keys = ['test_rewards']
+        rewards = np.array(self.hist_logs['test_rewards'])
+        fig = plt.figure()
+        ax = plt.axes()
+        ax.plot(rewards)
+
+        plt.title('Test Rewards')
         plt.xlabel('Episode')
         plt.ylabel('Reward')
         plt.grid()

@@ -58,6 +58,7 @@ class ValueRL(LightningModule):
         # telegrad
         self.telegrad_logs = {}
         self.telegrad_rewards = []
+        self.telegrad_test_rewards = []
         self.lr = hparams.lr # for telegrad
         self.reward_hist = []
 
@@ -67,7 +68,8 @@ class ValueRL(LightningModule):
         algo = importlib.import_module(import_string) # EXAMPLE: this is substitute for import pythor.RL.Value.dqn
 
         if self.env_type == 'linear':
-            self.env = gym.make(self.env_name)
+            self.env = self.make_env()
+            self.test_env = self.make_env()
             obs_shape = self.env.observation_space.shape[0]
             n_actions = self.env.action_space.n
             self.net = algo.Network(obs_shape, n_actions, hparams.activation, hparams)
@@ -77,9 +79,8 @@ class ValueRL(LightningModule):
                 self.target_net = algo.Network(obs_shape, n_actions, hparams.activation, hparams)
 
         if self.env_type == 'cnn':
-            env = make_atari(self.env_name)
-            env = wrap_deepmind(env)
-            self.env = wrap_pytorch(env)
+            self.env = self.make_env()
+            self.test_env = self.make_env()
             obs_shape = self.env.observation_space.shape # example (480,280,3)
             obs_shape = np.roll(np.array(obs_shape),1) # (3, 480, 280)
             n_actions = self.env.action_space.n
@@ -102,6 +103,16 @@ class ValueRL(LightningModule):
         self.episode_reward = 0
         
         self.populate(self.hparams.warm_start_steps)
+
+    def make_env(self):
+        if self.env_type == 'linear':
+            env = gym.make(self.env_name)
+        if self.env_type == 'cnn':
+            env = make_atari(self.env_name)
+            env = wrap_deepmind(env)
+            env = wrap_pytorch(env)
+        return env
+
 
     def populate(self, steps: int = 1000) -> None:
         """
@@ -176,6 +187,11 @@ class ValueRL(LightningModule):
             self.telegrad_rewards.append(self.total_reward) # telegrad
             self.reward_hist.append(self.total_reward)
         
+        if self.global_step % self.hparams.test_env_steps == 0:
+            test_reward = self.test_environment()
+            log['test_reward'] = test_reward
+            self.telegrad_test_rewards.append(test_reward)
+
         # Soft update of target network NOTE Check according to algo
         if self.global_step % self.hparams.sync_rate == 0:
             self.agent.update_target(self.net,self.target_net)
@@ -185,9 +201,14 @@ class ValueRL(LightningModule):
 
     def training_epoch_end(self, outputs):
         log = {'learning_rate': self.lr}
+        # NOTE the stop flag is only with training rewards and not with test rewards
         stop_flag, mean_rew = self.check_convergence()
-        self.telegrad_logs={'rewards':self.telegrad_rewards.copy(), 'lr':self.lr, 'mean_rew':np.round(mean_rew,3)} # telegrad
+        self.telegrad_logs={'rewards':self.telegrad_rewards.copy(), 
+                            'lr':self.lr, 
+                            'mean_rew':np.round(mean_rew,3),
+                            'test_rewards':self.telegrad_test_rewards.copy()} # telegrad
         self.telegrad_rewards.clear() # clear the list
+        self.telegrad_test_rewards.clear()
         if stop_flag:
             print('#'*50)
             print('\nStopping because rewards converged\n')
@@ -208,6 +229,25 @@ class ValueRL(LightningModule):
             if mean_rew > self.hparams.env_max_rew:
                 stop_training = True
         return stop_training, mean_rew
+
+    def test_environment(self):
+        """
+            Test the environment after self.hparams.test_env_steps 
+        """
+        state = self.test_env.reset() 
+        done = False
+        total_reward = 0
+        while not done:
+            state = torch.FloatTensor(state).unsqueeze(0)
+            with torch.no_grad():
+                q_values = self.net(state)
+            _, action = torch.max(q_values, dim=1)
+            # NOTE that action has been converted to int. May need to change to float for custom envs
+            action = int(action.item())
+            next_state, reward, done, _ = self.test_env.step(action)
+            state = next_state
+            total_reward += reward
+        return total_reward
 
     def train_dataloader(self) -> DataLoader:
         """Initialize the Replay Buffer dataset used for retrieving experiences"""
@@ -266,6 +306,7 @@ if __name__ == '__main__':
     parser.add_argument("--episode_length", type=int, default=200, help="max length of an episode")
     parser.add_argument("--env_max_rew", type=int, default=195, help="avg rewards in 100 episodes to stop training")
     parser.add_argument("--warm_start_steps", type=int, default=1000, help="warm up steps in the environment before training")
+    parser.add_argument("--test_env_steps", type=int, default=1000, help="Test environment after these man steps")
     # rl agent
     parser.add_argument("--gamma", type=float, default=0.99, help="discount factor")
     parser.add_argument("--sync_rate", type=int, default=10, help="how many frames do we update the target network")
