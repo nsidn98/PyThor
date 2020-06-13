@@ -14,15 +14,17 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
   <img src="https://raw.githubusercontent.com/nsidn98/PyThor/master/assets/telegrad2.jpg?token=AGFGCMGDEHYFF247UTJW3VK65DG6I" width="228"/>
   <img src="https://raw.githubusercontent.com/nsidn98/PyThor/master/assets/telegrad3.jpg?token=AGFGCMAFJ265RARGWPQDEXK65DG6M" width="216"/>
 </p>
+
 * Log experiment hyperparameters, metrics and training losses with MLflow.
 <p align="center">
   <img src="https://raw.githubusercontent.com/nsidn98/PyThor/master/assets/mlflow.png?token=AGFGCMGE6K3JXNJRQD4ASD265DG6O" width="800"/>
 </p>
+
 * Utilise Pytorch-Lightning to streamline the code and write less boilerplate.
 
 ## Templates included (planned):
 * Linear Neural Networks:
-  * [MLP](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Linear/MLP/mlp.py)
+  * [MLP](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Linear/MLP/mlp.py) :heavy_check_mark:
   * [Linear Autoencoder](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Linear/Autoencoder/autoencoder.py)
   * [Linear Variational Autoencoder](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Linear/Autoencoder/vae.py)
   * GAN
@@ -40,7 +42,7 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
     * Edge Conv
 * RL algorithms: 
   * [Value based](https://github.com/nsidn98/PyThor/tree/master/pythor/RL/Value): 
-    * Deep Q-Networks
+    * Deep Q-Networks 
     * Double Deep Q-Networks
     * Dueling Double Deep Q-Networks
     * Prioritized Replay Buffer for Q-Learning
@@ -48,9 +50,8 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
     * RAINBOW
   * Policy based:
     * REINFORCE
-    * DDPG
-    * TD3
-  * Actor-Critic: 
+    * DDPG 
+    * TD3 
     * A2C
     * A3C
     * SAC
