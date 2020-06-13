@@ -66,6 +66,8 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
 
 
 # Requirements:
+Use [`requirements.txt`](https://github.com/nsidn98/PyThor/blob/master/requirements.txt) to install libraries. Note RDkit requires 'conda install' and is not necessary if you are not going to use the graph neural network example given.
+
 * [PyTorch](https://pytorch.org/) and Torchvision for deep learning models.
 * [PyTorch-Geometric](https://pytorch-geometric.readthedocs.io/en/latest/) for graph neural network models.
 * [PyTorch-Lightning](https://pytorch-lightning.readthedocs.io/en/latest/) for managing experiments.
