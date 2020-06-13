@@ -24,7 +24,7 @@ Template for projects in PyTorch powered with PyTorch Lightning + MLflow + Teleg
 
 ## Templates included (planned):
 * Linear Neural Networks:
-  * [MLP](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Linear/MLP/mlp.py) :heavy_check_mark:
+  * [MLP](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Linear/MLP/mlp.py)
   * [Linear Autoencoder](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Linear/Autoencoder/autoencoder.py)
   * [Linear Variational Autoencoder](https://github.com/nsidn98/PyThor/blob/master/pythor/Networks/Linear/Autoencoder/vae.py)
   * GAN
