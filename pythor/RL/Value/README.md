@@ -25,3 +25,5 @@ If you want, you can change the status message you want over [here](https://gith
 `python -W ignore pythor/RL/Value/value_algos.py --algo_name=dqn --priority=1`
 
 Similarly you can run other algorithms in this folder with priority buffer.
+
+* For noisy networks you can set the `--noisy=1` flag.
