@@ -23,6 +23,9 @@ from pythor.bots.botCallback import TelegramBotCallback
 from pythor.bots.dl_bot import DLBot
 from pythor.bots.config import telegram_config
 
+# for offline wandb. Will load everything on cloud afterwards
+# os.environ["WANDB_API_KEY"] = "YOUR WANDB API KEY here"
+# os.environ["WANDB_MODE"] = "dryrun"
 
 ACTS = {
     'relu':nn.ReLU,
