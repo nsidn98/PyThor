@@ -16,6 +16,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import MLFlowLogger
+from pytorch_lightning.loggers import WandbLogger
 
 from pythor.datamodules import MNISTDataLoaders
 from pythor.bots.botCallback import TelegramBotCallback
@@ -111,9 +112,9 @@ class MLP(LightningModule):
         x, y = batch
         y_hat = self(x)  # get predictions from network
         loss = F.cross_entropy(y_hat, y)
-        log = {'trainer_loss':loss}
+        # log = {'trainer_loss':loss}
         # self.logger.experiment.log_metric('train_loss',loss)
-        return {'loss': loss, 'log': log}
+        return {'loss': loss, 'trainer_loss':loss}
     
     def training_epoch_end(self, outputs):
         """
@@ -133,14 +134,14 @@ class MLP(LightningModule):
         """
         x, y = batch
         y_hat = self(x)
-        return {'val_loss': F.cross_entropy(y_hat, y)}
+        return {'val_loss_st': F.cross_entropy(y_hat, y)}
 
     def validation_epoch_end(self, outputs):
         """
             Validation at the end of epoch
             Will store logs
         """
-        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        avg_loss = torch.stack([x['val_loss_st'] for x in outputs]).mean()
         logs = {'val_loss_epoch': avg_loss}
         self.telegrad_logs['val_loss_epoch'] = avg_loss.item() # for telegram bot
         return {'val_loss': avg_loss, 'log': logs}
@@ -207,14 +208,15 @@ def main():
 
     experiment_name = 'mlp'
     # tb_logger = loggers.TensorBoardLogger('logs')
-    mlf_logger = MLFlowLogger(
-                                experiment_name=experiment_name,
-                                tracking_uri="file:./mlruns"
-                                )
+    wandb_logger = WandbLogger(project=experiment_name)
+    # mlf_logger = MLFlowLogger(
+    #                             experiment_name=experiment_name,
+    #                             tracking_uri="file:./mlruns"
+    #                             )
     save_folder = 'model_weights/' + experiment_name + '/'
     if not os.path.exists(save_folder):
         os.mkdir(save_folder)
-    save_folder = save_folder + mlf_logger.run_id + '/'
+    # save_folder = save_folder + mlf_logger.run_id + '/'
     if not os.path.exists(save_folder):
         os.mkdir(save_folder)
 
@@ -236,7 +238,7 @@ def main():
                         fast_dev_run=False,                     # make this as True only to check for bugs
                         max_epochs=1000,
                         resume_from_checkpoint=None,            # change this to model_path
-                        logger=mlf_logger,                      # mlflow logger
+                        logger=wandb_logger,                      # mlflow logger
                         callbacks=[telegramCallback],           # telegrad
                         )
 
