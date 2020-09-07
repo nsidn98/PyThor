@@ -7,6 +7,7 @@ https://eyalzk.github.io/
 
 # from keras.callbacks import Callback
 # import keras.backend as K
+import os
 import mlflow
 import mlflow.pytorch
 from pythor.bots.dl_bot import DLBot
@@ -53,13 +54,13 @@ class TelegramBotCallback(Callback):
         self.kbot.send_message('Train Completed!')
         self.kbot.stop_bot()
         # save weights in mlflow and model_weights/
-        store_path = "model_weights/"+ pl_module.logger.experiment_name + "/" + pl_module.logger.run_id + '/final_model.ckpt'
+        trainer.save_checkpoint(os.path.join(pl_module.logger._experiment.dir, "model.ckpt"))
+        # store_path = "model_weights/"+ pl_module.logger.experiment_name + "/" + pl_module.logger.run_id + '/final_model.ckpt'
         print('#'*50)
-        print('Saving Weights in MLflow run and '+ store_path)
+        print('Saving Weights in MLflow run ')
         print('#'*50)
-        trainer.save_checkpoint(store_path)
-        # mlflow.pytorch.save_model(pl_module, store_path)
-        pl_module.logger.experiment.log_artifact(pl_module.logger.run_id, "model_weights/"+ pl_module.logger.experiment_name + "/" + pl_module.logger.run_id)
+        # trainer.save_checkpoint(store_path)
+        # pl_module.logger.experiment.log_artifact(pl_module.logger.run_id, "model_weights/"+ pl_module.logger.experiment_name + "/" + pl_module.logger.run_id)
 
     def on_epoch_start(self, trainer, pl_module):
         if self.kbot.modify_lr != 1:
