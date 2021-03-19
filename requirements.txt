@@ -11,7 +11,7 @@ numpy==1.18.1
 mlflow==1.8.0
 opencv_python==4.2.0.34
 pytorch_lightning==0.7.6
-Pillow==7.1.2
+Pillow==8.1.1
 rdkit==2009.Q1-1
 scikit_learn==0.23.1
 telegram==0.0.1
